@@ -3,8 +3,11 @@ package com.qandilalzman.digital;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -41,13 +44,24 @@ public class MainActivity extends AppCompatActivity {
     private ValueCallback<Uri[]> uploadMessage;
     private Uri cameraUri;
 
+    /*
+     * منع إعادة تحميل صفحة عدم الاتصال بشكل متكرر
+     */
+    private boolean showingOfflinePage = false;
+
     private static final int REQUEST_CODE_FILE = 100;
     private static final int REQUEST_CODE_CAMERA = 101;
     private static final int REQUEST_PERMISSION_CAMERA = 200;
 
+    /*
+     * رابط الموقع
+     */
     private static final String WEBSITE_URL =
             "https://qandilalzman-from.cc.cd/";
 
+    /*
+     * النطاق الرئيسي
+     */
     private static final String MAIN_DOMAIN =
             "qandilalzman-from.cc.cd";
 
@@ -64,25 +78,72 @@ public class MainActivity extends AppCompatActivity {
         setupWebView();
 
         /*
-         * استعادة حالة WebView إذا كانت موجودة
+         * إذا لم يوجد اتصال بالإنترنت
+         * نعرض الصفحة المحلية مباشرة.
+         *
+         * مهم:
+         * لا نستعيد صفحة تسجيل الدخول المحفوظة
+         * عندما يكون الجهاز بدون اتصال.
          */
-        if (savedInstanceState != null) {
+        if (!isNetworkAvailable()) {
 
-            webView.restoreState(savedInstanceState);
+            showOfflinePage();
 
         } else {
 
             /*
-             * تحميل الموقع الأساسي
+             * يوجد اتصال.
+             *
+             * إذا كانت هناك حالة محفوظة نستعيدها،
+             * وإلا نفتح الموقع.
              */
-            webView.loadUrl(WEBSITE_URL);
+            if (savedInstanceState != null) {
+
+                webView.restoreState(savedInstanceState);
+
+            } else {
+
+                webView.loadUrl(WEBSITE_URL);
+            }
+        }
+    }
+
+
+    /*
+     * فحص وجود اتصال بالشبكة
+     */
+    private boolean isNetworkAvailable() {
+
+        ConnectivityManager connectivityManager =
+                (ConnectivityManager)
+                        getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        if (connectivityManager == null) {
+            return false;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+
+            Network network =
+                    connectivityManager.getActiveNetwork();
+
+            return network != null;
+
+        } else {
+
+            android.net.NetworkInfo networkInfo =
+                    connectivityManager.getActiveNetworkInfo();
+
+            return networkInfo != null
+                    && networkInfo.isConnected();
         }
     }
 
 
     private void setupWebView() {
 
-        WebSettings webSettings = webView.getSettings();
+        WebSettings webSettings =
+                webView.getSettings();
 
         /*
          * JavaScript
@@ -121,12 +182,15 @@ public class MainActivity extends AppCompatActivity {
         /*
          * Cache
          */
-        webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        webSettings.setCacheMode(
+                WebSettings.LOAD_DEFAULT
+        );
 
         /*
          * Mixed Content
          */
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.LOLLIPOP) {
 
             webSettings.setMixedContentMode(
                     WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
@@ -151,7 +215,8 @@ public class MainActivity extends AppCompatActivity {
 
         cookieManager.setAcceptCookie(true);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.LOLLIPOP) {
 
             cookieManager.setAcceptThirdPartyCookies(
                     webView,
@@ -163,305 +228,346 @@ public class MainActivity extends AppCompatActivity {
         /*
          * WebViewClient
          */
-        webView.setWebViewClient(new WebViewClient() {
+        webView.setWebViewClient(
+                new WebViewClient() {
 
-            @Override
-            public boolean shouldOverrideUrlLoading(
-                    WebView view,
-                    WebResourceRequest request
-            ) {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(
+                            WebView view,
+                            WebResourceRequest request
+                    ) {
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        if (Build.VERSION.SDK_INT >=
+                                Build.VERSION_CODES.LOLLIPOP) {
 
-                    return handleUrl(request.getUrl());
+                            return handleUrl(
+                                    request.getUrl()
+                            );
+                        }
+
+                        return false;
+                    }
+
+
+                    /*
+                     * دعم Android القديم
+                     */
+                    @Override
+                    public boolean shouldOverrideUrlLoading(
+                            WebView view,
+                            String url
+                    ) {
+
+                        return handleUrl(
+                                Uri.parse(url)
+                        );
+                    }
+
+
+                    @Override
+                    public void onPageStarted(
+                            WebView view,
+                            String url,
+                            android.graphics.Bitmap favicon
+                    ) {
+
+                        super.onPageStarted(
+                                view,
+                                url,
+                                favicon
+                        );
+
+                        if (progressBar != null) {
+
+                            progressBar.setVisibility(
+                                    ProgressBar.VISIBLE
+                            );
+                        }
+                    }
+
+
+                    @Override
+                    public void onPageFinished(
+                            WebView view,
+                            String url
+                    ) {
+
+                        super.onPageFinished(
+                                view,
+                                url
+                        );
+
+                        if (progressBar != null) {
+
+                            progressBar.setProgress(100);
+
+                            progressBar.setVisibility(
+                                    ProgressBar.GONE
+                            );
+                        }
+
+                        CookieManager
+                                .getInstance()
+                                .flush();
+                    }
+
+
+                    /*
+                     * خطأ تحميل الصفحة
+                     *
+                     * إذا أصبح الموقع غير متاح
+                     * نعرض الصفحة المحلية.
+                     */
+                    @Override
+                    public void onReceivedError(
+                            WebView view,
+                            WebResourceRequest request,
+                            WebResourceError error
+                    ) {
+
+                        super.onReceivedError(
+                                view,
+                                request,
+                                error
+                        );
+
+                        if (Build.VERSION.SDK_INT >=
+                                Build.VERSION_CODES.LOLLIPOP) {
+
+                            if (request.isForMainFrame()) {
+
+                                showOfflinePage();
+                            }
+                        }
+                    }
+
+
+                    /*
+                     * دعم Android القديم
+                     */
+                    @Override
+                    public void onReceivedError(
+                            WebView view,
+                            int errorCode,
+                            String description,
+                            String failingUrl
+                    ) {
+
+                        super.onReceivedError(
+                                view,
+                                errorCode,
+                                description,
+                                failingUrl
+                        );
+
+                        showOfflinePage();
+                    }
                 }
-
-                return false;
-            }
-
-
-            @Override
-            public boolean shouldOverrideUrlLoading(
-                    WebView view,
-                    String url
-            ) {
-
-                return handleUrl(Uri.parse(url));
-            }
-
-
-            @Override
-            public void onPageStarted(
-                    WebView view,
-                    String url,
-                    android.graphics.Bitmap favicon
-            ) {
-
-                super.onPageStarted(
-                        view,
-                        url,
-                        favicon
-                );
-
-                if (progressBar != null) {
-
-                    progressBar.setVisibility(
-                            ProgressBar.VISIBLE
-                    );
-                }
-            }
-
-
-            @Override
-            public void onPageFinished(
-                    WebView view,
-                    String url
-            ) {
-
-                super.onPageFinished(
-                        view,
-                        url
-                );
-
-                if (progressBar != null) {
-
-                    progressBar.setProgress(100);
-
-                    progressBar.setVisibility(
-                            ProgressBar.GONE
-                    );
-                }
-
-                CookieManager
-                        .getInstance()
-                        .flush();
-            }
-
-
-            /*
-             * أهم جزء:
-             * عند فشل تحميل الموقع بسبب عدم وجود الإنترنت
-             * نعرض صفحة offline الموجودة داخل التطبيق.
-             */
-            @Override
-            public void onReceivedError(
-                    WebView view,
-                    WebResourceRequest request,
-                    WebResourceError error
-            ) {
-
-                super.onReceivedError(
-                        view,
-                        request,
-                        error
-                );
-
-                if (request.isForMainFrame()) {
-
-                    showOfflinePage();
-                }
-            }
-
-
-            /*
-             * دعم إصدارات Android القديمة
-             */
-            @Override
-            public void onReceivedError(
-                    WebView view,
-                    int errorCode,
-                    String description,
-                    String failingUrl
-            ) {
-
-                super.onReceivedError(
-                        view,
-                        errorCode,
-                        description,
-                        failingUrl
-                );
-
-                showOfflinePage();
-            }
-        });
+        );
 
 
         /*
          * WebChromeClient
+         *
+         * مسؤول عن:
+         * - رفع الملفات
+         * - الكاميرا
+         * - شريط التقدم
          */
-        webView.setWebChromeClient(new WebChromeClient() {
+        webView.setWebChromeClient(
+                new WebChromeClient() {
 
-            @Override
-            public void onProgressChanged(
-                    WebView view,
-                    int newProgress
-            ) {
+                    @Override
+                    public void onProgressChanged(
+                            WebView view,
+                            int newProgress
+                    ) {
 
-                super.onProgressChanged(
-                        view,
-                        newProgress
-                );
-
-                if (progressBar != null) {
-
-                    progressBar.setProgress(
-                            newProgress
-                    );
-
-                    if (newProgress >= 100) {
-
-                        progressBar.setVisibility(
-                                ProgressBar.GONE
+                        super.onProgressChanged(
+                                view,
+                                newProgress
                         );
 
-                    } else {
+                        if (progressBar != null) {
 
-                        progressBar.setVisibility(
-                                ProgressBar.VISIBLE
-                        );
-                    }
-                }
-            }
-
-
-            /*
-             * رفع الملفات والكاميرا
-             */
-            @Override
-            public boolean onShowFileChooser(
-                    WebView webView,
-                    ValueCallback<Uri[]> filePathCallback,
-                    FileChooserParams fileChooserParams
-            ) {
-
-                if (uploadMessage != null) {
-
-                    uploadMessage.onReceiveValue(null);
-
-                    uploadMessage = null;
-                }
-
-                uploadMessage = filePathCallback;
-
-                boolean canCapture =
-                        fileChooserParams.isCaptureEnabled();
-
-                Intent fileIntent =
-                        new Intent(
-                                Intent.ACTION_GET_CONTENT
-                        );
-
-                fileIntent.addCategory(
-                        Intent.CATEGORY_OPENABLE
-                );
-
-                fileIntent.setType("*/*");
-
-                fileIntent.putExtra(
-                        Intent.EXTRA_ALLOW_MULTIPLE,
-                        true
-                );
-
-
-                /*
-                 * الكاميرا
-                 */
-                if (canCapture) {
-
-                    if (checkCameraPermission()) {
-
-                        Intent cameraIntent =
-                                createCameraIntent();
-
-                        if (cameraIntent != null) {
-
-                            Intent chooser =
-                                    Intent.createChooser(
-                                            fileIntent,
-                                            "اختيار ملف أو صورة"
-                                    );
-
-                            chooser.putExtra(
-                                    Intent.EXTRA_INITIAL_INTENTS,
-                                    new Intent[]{
-                                            cameraIntent
-                                    }
+                            progressBar.setProgress(
+                                    newProgress
                             );
 
-                            try {
+                            if (newProgress >= 100) {
 
-                                startActivityForResult(
-                                        chooser,
-                                        REQUEST_CODE_FILE
+                                progressBar.setVisibility(
+                                        ProgressBar.GONE
+                                );
+
+                            } else {
+
+                                progressBar.setVisibility(
+                                        ProgressBar.VISIBLE
+                                );
+                            }
+                        }
+                    }
+
+
+                    /*
+                     * رفع الملفات والكاميرا
+                     */
+                    @Override
+                    public boolean onShowFileChooser(
+                            WebView webView,
+                            ValueCallback<Uri[]> filePathCallback,
+                            FileChooserParams fileChooserParams
+                    ) {
+
+                        if (uploadMessage != null) {
+
+                            uploadMessage.onReceiveValue(
+                                    null
+                            );
+
+                            uploadMessage = null;
+                        }
+
+                        uploadMessage =
+                                filePathCallback;
+
+                        boolean canCapture =
+                                fileChooserParams
+                                        .isCaptureEnabled();
+
+                        Intent fileIntent =
+                                new Intent(
+                                        Intent.ACTION_GET_CONTENT
+                                );
+
+                        fileIntent.addCategory(
+                                Intent.CATEGORY_OPENABLE
+                        );
+
+                        fileIntent.setType("*/*");
+
+                        fileIntent.putExtra(
+                                Intent.EXTRA_ALLOW_MULTIPLE,
+                                true
+                        );
+
+
+                        /*
+                         * الكاميرا
+                         */
+                        if (canCapture) {
+
+                            if (checkCameraPermission()) {
+
+                                Intent cameraIntent =
+                                        createCameraIntent();
+
+                                if (cameraIntent != null) {
+
+                                    Intent chooser =
+                                            Intent.createChooser(
+                                                    fileIntent,
+                                                    "اختيار ملف أو صورة"
+                                            );
+
+                                    chooser.putExtra(
+                                            Intent.EXTRA_INITIAL_INTENTS,
+                                            new Intent[]{
+                                                    cameraIntent
+                                            }
+                                    );
+
+                                    try {
+
+                                        startActivityForResult(
+                                                chooser,
+                                                REQUEST_CODE_FILE
+                                        );
+
+                                        return true;
+
+                                    } catch (
+                                            ActivityNotFoundException e
+                                    ) {
+                                        // نكمل إلى اختيار الملفات
+                                    }
+                                }
+
+                            } else {
+
+                                ActivityCompat.requestPermissions(
+                                        MainActivity.this,
+                                        new String[]{
+                                                Manifest.permission.CAMERA
+                                        },
+                                        REQUEST_PERMISSION_CAMERA
                                 );
 
                                 return true;
-
-                            } catch (
-                                    ActivityNotFoundException e
-                            ) {
-                                // نكمل إلى اختيار الملفات
                             }
                         }
 
-                    } else {
 
-                        ActivityCompat.requestPermissions(
-                                MainActivity.this,
-                                new String[]{
-                                        Manifest.permission.CAMERA
-                                },
-                                REQUEST_PERMISSION_CAMERA
-                        );
+                        try {
+
+                            startActivityForResult(
+                                    fileIntent,
+                                    REQUEST_CODE_FILE
+                            );
+
+                        } catch (
+                                ActivityNotFoundException e
+                        ) {
+
+                            if (uploadMessage != null) {
+
+                                uploadMessage.onReceiveValue(
+                                        null
+                                );
+
+                                uploadMessage = null;
+                            }
+
+                            Toast.makeText(
+                                    MainActivity.this,
+                                    "لا يوجد تطبيق لاختيار الملفات.",
+                                    Toast.LENGTH_LONG
+                            ).show();
+                        }
 
                         return true;
                     }
                 }
-
-
-                try {
-
-                    startActivityForResult(
-                            fileIntent,
-                            REQUEST_CODE_FILE
-                    );
-
-                } catch (
-                        ActivityNotFoundException e
-                ) {
-
-                    if (uploadMessage != null) {
-
-                        uploadMessage.onReceiveValue(null);
-                        uploadMessage = null;
-                    }
-
-                    Toast.makeText(
-                            MainActivity.this,
-                            "لا يوجد تطبيق لاختيار الملفات.",
-                            Toast.LENGTH_LONG
-                    ).show();
-                }
-
-                return true;
-            }
-        });
+        );
     }
 
 
     /*
-     * عرض صفحة عدم الاتصال
+     * =====================================================
+     * صفحة عدم الاتصال بالإنترنت
+     * =====================================================
      *
-     * الصفحة موجودة داخل:
+     * الصفحة موجودة هنا:
+     *
      * app/src/main/assets/offline.html
      *
-     * لذلك لا تحتاج إلى الإنترنت.
+     * وهي صفحة محلية بالكامل.
      */
     private void showOfflinePage() {
 
         if (webView == null) {
             return;
         }
+
+        /*
+         * منع التكرار
+         */
+        if (showingOfflinePage) {
+            return;
+        }
+
+        showingOfflinePage = true;
 
         if (progressBar != null) {
 
@@ -470,6 +576,11 @@ public class MainActivity extends AppCompatActivity {
             );
         }
 
+        /*
+         * تحميل الصفحة من داخل التطبيق
+         *
+         * لا تحتاج إلى الإنترنت.
+         */
         webView.loadUrl(
                 "file:///android_asset/offline.html"
         );
@@ -485,7 +596,8 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
 
-        String scheme = uri.getScheme();
+        String scheme =
+                uri.getScheme();
 
         if (scheme == null) {
             return false;
@@ -493,17 +605,26 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * روابط الموقع تبقى داخل WebView
+         * روابط الموقع
          */
         if (scheme.equalsIgnoreCase("http")
                 || scheme.equalsIgnoreCase("https")) {
 
-            String host = uri.getHost();
+            String host =
+                    uri.getHost();
 
+            /*
+             * رابط الموقع الرئيسي
+             * يبقى داخل التطبيق.
+             */
             if (host != null
                     && (
-                    host.equalsIgnoreCase(MAIN_DOMAIN)
-                            || host.endsWith("." + MAIN_DOMAIN)
+                    host.equalsIgnoreCase(
+                            MAIN_DOMAIN
+                    )
+                            || host.endsWith(
+                            "." + MAIN_DOMAIN
+                    )
             )) {
 
                 return false;
@@ -738,7 +859,10 @@ public class MainActivity extends AppCompatActivity {
          */
         if (resultCode != Activity.RESULT_OK) {
 
-            uploadMessage.onReceiveValue(null);
+            uploadMessage.onReceiveValue(
+                    null
+            );
+
             uploadMessage = null;
             cameraUri = null;
 
@@ -753,9 +877,10 @@ public class MainActivity extends AppCompatActivity {
 
             if (cameraUri != null) {
 
-                results = new Uri[]{
-                        cameraUri
-                };
+                results =
+                        new Uri[]{
+                                cameraUri
+                        };
             }
 
         } else {
@@ -787,9 +912,10 @@ public class MainActivity extends AppCompatActivity {
              */
             else if (data.getData() != null) {
 
-                results = new Uri[]{
-                        data.getData()
-                };
+                results =
+                        new Uri[]{
+                                data.getData()
+                        };
             }
         }
 
@@ -851,6 +977,17 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
 
+        /*
+         * إذا كانت صفحة عدم الاتصال ظاهرة،
+         * لا نرجع إلى صفحة تسجيل الدخول القديمة.
+         */
+        if (showingOfflinePage) {
+
+            super.onBackPressed();
+            return;
+        }
+
+
         if (webView != null
                 && webView.canGoBack()) {
 
@@ -871,7 +1008,11 @@ public class MainActivity extends AppCompatActivity {
             Bundle outState
     ) {
 
-        if (webView != null) {
+        /*
+         * لا نحفظ صفحة offline
+         */
+        if (webView != null
+                && !showingOfflinePage) {
 
             webView.saveState(
                     outState
@@ -905,4 +1046,4 @@ public class MainActivity extends AppCompatActivity {
 
         super.onDestroy();
     }
-    }
+            }
