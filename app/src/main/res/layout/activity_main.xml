@@ -3,9 +3,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- الموقع الرئيسي -->
     <WebView
         android:id="@+id/webView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <!-- شاشة البداية المستقلة -->
+    <WebView
+        android:id="@+id/splashWebView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="visible" />
 
 </RelativeLayout>
