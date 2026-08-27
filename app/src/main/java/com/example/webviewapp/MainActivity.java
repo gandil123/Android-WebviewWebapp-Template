@@ -3,7 +3,10 @@ package com.qandilalzman.digital;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -82,6 +85,11 @@ public class MainActivity extends AppCompatActivity {
      */
     private boolean showingSplash = false;
 
+    /*
+     * مراقبة عودة الإنترنت
+     */
+    private BroadcastReceiver networkReceiver;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,14 +102,61 @@ public class MainActivity extends AppCompatActivity {
         setupWebView();
 
         /*
+         * مراقبة حالة الإنترنت.
+         *
+         * عندما يعود الإنترنت بعد ظهور Offline:
+         * يتم تحميل الموقع تلقائيًا.
+         */
+        networkReceiver = new BroadcastReceiver() {
+
+            @Override
+            public void onReceive(
+                    Context context,
+                    Intent intent
+            ) {
+
+                if (webView == null || showingSplash) {
+                    return;
+                }
+
+                if (isNetworkAvailable()) {
+
+                    String currentUrl =
+                            webView.getUrl();
+
+                    /*
+                     * إذا كانت الصفحة الحالية Offline
+                     * نرجع تلقائيًا إلى الموقع.
+                     */
+                    if (currentUrl != null
+                            && currentUrl.equals(OFFLINE_URL)) {
+
+                        showingOfflinePage = false;
+
+                        loadWebsite();
+                    }
+                }
+            }
+        };
+
+        registerReceiver(
+                networkReceiver,
+                new IntentFilter(
+                        ConnectivityManager.CONNECTIVITY_ACTION
+                )
+        );
+
+
+        /*
          * عرض Splash المحلية فورًا.
          *
-         * لا تحتاج إلى إنترنت إطلاقًا.
+         * لا تحتاج إلى الإنترنت.
          */
         showingSplash = true;
         showingOfflinePage = false;
 
         webView.loadUrl(SPLASH_URL);
+
 
         /*
          * بعد انتهاء Splash:
@@ -111,6 +166,7 @@ public class MainActivity extends AppCompatActivity {
          * لا يوجد إنترنت → offline.html
          */
         webView.postDelayed(new Runnable() {
+
             @Override
             public void run() {
 
@@ -130,6 +186,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
             }
+
         }, SPLASH_DURATION);
     }
 
@@ -297,7 +354,7 @@ public class MainActivity extends AppCompatActivity {
                         );
 
                         /*
-                         * تم تحميل الموقع بنجاح
+                         * تم تحميل الموقع بنجاح.
                          */
                         if (!url.startsWith(
                                 "file:///android_asset/"
@@ -331,7 +388,7 @@ public class MainActivity extends AppCompatActivity {
                         /*
                          * نهتم فقط بالصفحة الرئيسية.
                          *
-                         * لا نعرض offline.html بسبب
+                         * لا نعرض Offline بسبب
                          * صورة أو ملف JavaScript فشل.
                          */
                         if (Build.VERSION.SDK_INT >=
@@ -372,7 +429,7 @@ public class MainActivity extends AppCompatActivity {
                         );
 
                         /*
-                         * لا نعرضها أثناء Splash
+                         * لا نعرض Offline أثناء Splash.
                          */
                         if (!showingSplash) {
 
@@ -681,7 +738,7 @@ public class MainActivity extends AppCompatActivity {
 
             /*
              * الروابط الخارجية
-             * تفتح خارج التطبيق
+             * تفتح خارج التطبيق.
              */
             try {
 
@@ -1040,7 +1097,7 @@ public class MainActivity extends AppCompatActivity {
 
             /*
              * إذا كان المستخدم في Splash
-             * أو offline لا نرجع لصفحة
+             * أو Offline لا نرجع لصفحة
              * الإنترنت السابقة.
              */
             if (currentUrl != null
@@ -1090,6 +1147,24 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
 
+        /*
+         * إيقاف مراقبة الإنترنت
+         */
+        if (networkReceiver != null) {
+
+            try {
+
+                unregisterReceiver(
+                        networkReceiver
+                );
+
+            } catch (Exception ignored) {
+            }
+
+            networkReceiver = null;
+        }
+
+
         if (webView != null) {
 
             webView.stopLoading();
@@ -1105,4 +1180,4 @@ public class MainActivity extends AppCompatActivity {
 
         super.onDestroy();
     }
-                }
+            }
