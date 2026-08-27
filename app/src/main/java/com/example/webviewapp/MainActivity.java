@@ -47,28 +47,50 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_FILE = 100;
     private static final int REQUEST_PERMISSION_CAMERA = 200;
 
+    /*
+     * رابط الموقع
+     */
     private static final String WEBSITE_URL =
             "https://qandilalzman-from.cc.cd/";
 
+    /*
+     * نطاق الموقع
+     */
     private static final String MAIN_DOMAIN =
             "qandilalzman-from.cc.cd";
 
+    /*
+     * الصفحات المحلية
+     */
     private static final String SPLASH_URL =
             "file:///android_asset/splash.html";
 
     private static final String OFFLINE_URL =
             "file:///android_asset/offline.html";
 
+    /*
+     * مدة شاشة البداية
+     */
     private static final long SPLASH_DURATION = 2500;
 
+    /*
+     * حالة شاشة البداية
+     */
     private boolean showingSplash = false;
+
+    /*
+     * حالة Offline
+     */
     private boolean showingOfflinePage = false;
 
+    /*
+     * مراقبة الشبكة
+     */
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
 
     /*
-     * منع إعادة تحميل الموقع عدة مرات
+     * منع التكرار عند عودة الإنترنت
      */
     private boolean isReturningOnline = false;
 
@@ -84,16 +106,17 @@ public class MainActivity extends AppCompatActivity {
         setupWebView();
 
         /*
-         * Splash تظهر فقط عند تشغيل التطبيق.
+         * تشغيل Splash.
+         *
+         * مهم:
+         * نقوم بتحميلها ثم نمسح سجل WebView
+         * حتى لا يستطيع زر الرجوع العودة إليها.
          */
         showingSplash = true;
         showingOfflinePage = false;
 
         webView.loadUrl(SPLASH_URL);
 
-        /*
-         * بعد انتهاء Splash.
-         */
         webView.postDelayed(new Runnable() {
 
             @Override
@@ -105,6 +128,18 @@ public class MainActivity extends AppCompatActivity {
 
                 showingSplash = false;
 
+                /*
+                 * مسح سجل Splash من WebView
+                 */
+                webView.clearHistory();
+
+                /*
+                 * بعد انتهاء Splash:
+                 *
+                 * يوجد إنترنت → الموقع
+                 *
+                 * لا يوجد إنترنت → Offline
+                 */
                 if (isInternetAvailable()) {
 
                     loadWebsite();
@@ -113,12 +148,14 @@ public class MainActivity extends AppCompatActivity {
 
                     showOfflinePage();
                 }
+
             }
 
         }, SPLASH_DURATION);
 
+
         /*
-         * بدء مراقبة الإنترنت.
+         * مراقبة الإنترنت
          */
         registerNetworkCallback();
     }
@@ -132,30 +169,50 @@ public class MainActivity extends AppCompatActivity {
         WebSettings webSettings =
                 webView.getSettings();
 
+        /*
+         * JavaScript
+         */
         webSettings.setJavaScriptEnabled(true);
 
+        /*
+         * Local Storage
+         */
         webSettings.setDomStorageEnabled(true);
 
+        /*
+         * الملفات
+         */
         webSettings.setAllowFileAccess(true);
-
         webSettings.setAllowContentAccess(true);
 
+        /*
+         * Database
+         */
         webSettings.setDatabaseEnabled(true);
 
+        /*
+         * تحسين عرض الموقع
+         */
         webSettings.setLoadWithOverviewMode(true);
-
         webSettings.setUseWideViewPort(true);
 
+        /*
+         * التكبير
+         */
         webSettings.setSupportZoom(true);
-
         webSettings.setBuiltInZoomControls(true);
-
         webSettings.setDisplayZoomControls(false);
 
+        /*
+         * Cache
+         */
         webSettings.setCacheMode(
                 WebSettings.LOAD_DEFAULT
         );
 
+        /*
+         * Mixed Content
+         */
         if (Build.VERSION.SDK_INT >=
                 Build.VERSION_CODES.LOLLIPOP) {
 
@@ -164,8 +221,14 @@ public class MainActivity extends AppCompatActivity {
             );
         }
 
+        /*
+         * حفظ بيانات النماذج
+         */
         webSettings.setSaveFormData(true);
 
+        /*
+         * الموقع الجغرافي
+         */
         webSettings.setGeolocationEnabled(true);
 
 
@@ -193,6 +256,9 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(
                 new WebViewClient() {
 
+                    /*
+                     * روابط Android الحديثة
+                     */
                     @Override
                     public boolean shouldOverrideUrlLoading(
                             WebView view,
@@ -212,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                     /*
-                     * دعم Android القديم
+                     * Android القديم
                      */
                     @Override
                     public boolean shouldOverrideUrlLoading(
@@ -222,6 +288,24 @@ public class MainActivity extends AppCompatActivity {
 
                         return handleUrl(
                                 Uri.parse(url)
+                        );
+                    }
+
+
+                    /*
+                     * بداية تحميل الصفحة
+                     */
+                    @Override
+                    public void onPageStarted(
+                            WebView view,
+                            String url,
+                            android.graphics.Bitmap favicon
+                    ) {
+
+                        super.onPageStarted(
+                                view,
+                                url,
+                                favicon
                         );
                     }
 
@@ -241,7 +325,7 @@ public class MainActivity extends AppCompatActivity {
                         );
 
                         /*
-                         * إذا كان موقعك
+                         * الموقع الحقيقي
                          */
                         if (!url.startsWith(
                                 "file:///android_asset/"
@@ -272,30 +356,33 @@ public class MainActivity extends AppCompatActivity {
                                 error
                         );
 
+                        /*
+                         * لا نعرض Offline أثناء Splash
+                         */
+                        if (showingSplash) {
+                            return;
+                        }
+
+                        /*
+                         * نهتم بالصفحة الرئيسية فقط
+                         */
                         if (Build.VERSION.SDK_INT >=
                                 Build.VERSION_CODES.M) {
 
-                            /*
-                             * نهتم فقط بالصفحة الرئيسية.
-                             */
-                            if (request.isForMainFrame()
-                                    && !showingSplash) {
+                            if (request.isForMainFrame()) {
 
                                 showOfflinePage();
                             }
 
                         } else {
 
-                            if (!showingSplash) {
-
-                                showOfflinePage();
-                            }
+                            showOfflinePage();
                         }
                     }
 
 
                     /*
-                     * دعم Android القديم
+                     * Android القديم
                      */
                     @Override
                     public void onReceivedError(
@@ -328,7 +415,7 @@ public class MainActivity extends AppCompatActivity {
                 new WebChromeClient() {
 
                     /*
-                     * الكاميرا ورفع الملفات
+                     * رفع الملفات والكاميرا
                      */
                     @Override
                     public boolean onShowFileChooser(
@@ -337,6 +424,9 @@ public class MainActivity extends AppCompatActivity {
                             FileChooserParams fileChooserParams
                     ) {
 
+                        /*
+                         * إلغاء اختيار سابق
+                         */
                         if (uploadMessage != null) {
 
                             uploadMessage.onReceiveValue(
@@ -350,6 +440,9 @@ public class MainActivity extends AppCompatActivity {
                                 filePathCallback;
 
 
+                        /*
+                         * هل طلب الموقع الكاميرا؟
+                         */
                         boolean canCapture =
                                 fileChooserParams
                                         .isCaptureEnabled();
@@ -469,7 +562,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * مراقبة الإنترنت
+     * تسجيل مراقبة الشبكة
      */
     private void registerNetworkCallback() {
 
@@ -494,7 +587,7 @@ public class MainActivity extends AppCompatActivity {
                 new ConnectivityManager.NetworkCallback() {
 
                     /*
-                     * ظهر اتصال بالشبكة
+                     * أصبحت الشبكة متاحة
                      */
                     @Override
                     public void onAvailable(
@@ -515,7 +608,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                     /*
-                     * أصبحت الشبكة غير متاحة
+                     * فقدان الشبكة
                      */
                     @Override
                     public void onLost(
@@ -538,9 +631,10 @@ public class MainActivity extends AppCompatActivity {
 
         try {
 
-            connectivityManager.registerDefaultNetworkCallback(
-                    networkCallback
-            );
+            connectivityManager
+                    .registerDefaultNetworkCallback(
+                            networkCallback
+                    );
 
         } catch (Exception ignored) {
         }
@@ -548,7 +642,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * الإنترنت عاد
+     * عند عودة الإنترنت
      */
     private void handleInternetAvailable() {
 
@@ -567,6 +661,7 @@ public class MainActivity extends AppCompatActivity {
         String currentUrl =
                 webView.getUrl();
 
+
         /*
          * إذا كنا في Offline
          */
@@ -577,10 +672,16 @@ public class MainActivity extends AppCompatActivity {
 
             showingOfflinePage = false;
 
+            /*
+             * إزالة Offline من السجل
+             */
+            webView.clearHistory();
+
             loadWebsite();
 
+
             /*
-             * السماح بمحاولة جديدة لاحقًا.
+             * السماح بمحاولة أخرى لاحقًا
              */
             webView.postDelayed(
                     new Runnable() {
@@ -599,7 +700,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * الإنترنت انقطع
+     * عند انقطاع الإنترنت
      */
     private void handleInternetLost() {
 
@@ -614,6 +715,7 @@ public class MainActivity extends AppCompatActivity {
         String currentUrl =
                 webView.getUrl();
 
+
         /*
          * إذا كنا بالفعل في Offline
          */
@@ -623,15 +725,16 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+
         /*
-         * عرض Offline فورًا.
+         * إظهار Offline فورًا
          */
         showOfflinePage();
     }
 
 
     /*
-     * فحص الإنترنت الحقيقي
+     * فحص الإنترنت
      */
     private boolean isInternetAvailable() {
 
@@ -646,6 +749,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
+        /*
+         * Android 6+
+         */
         if (Build.VERSION.SDK_INT >=
                 Build.VERSION_CODES.M) {
 
@@ -665,15 +771,36 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
 
-            return capabilities.hasCapability(
+
+            /*
+             * وجود الإنترنت
+             */
+            if (!capabilities.hasCapability(
                     NetworkCapabilities.NET_CAPABILITY_INTERNET
-            )
-                    && capabilities.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
-            );
+            )) {
+
+                return false;
+            }
+
+
+            /*
+             * الإنترنت متحقق فعليًا
+             */
+            if (Build.VERSION.SDK_INT >=
+                    Build.VERSION_CODES.M) {
+
+                return capabilities.hasCapability(
+                        NetworkCapabilities.NET_CAPABILITY_VALIDATED
+                );
+            }
+
+            return true;
         }
 
 
+        /*
+         * Android القديم
+         */
         android.net.NetworkInfo networkInfo =
                 cm.getActiveNetworkInfo();
 
@@ -714,6 +841,13 @@ public class MainActivity extends AppCompatActivity {
 
         showingOfflinePage = true;
 
+        /*
+         * مسح سجل الموقع حتى لا يعود
+         * زر الرجوع إلى الصفحات السابقة
+         * بعد ظهور Offline.
+         */
+        webView.clearHistory();
+
         webView.loadUrl(
                 OFFLINE_URL
         );
@@ -748,7 +882,7 @@ public class MainActivity extends AppCompatActivity {
 
 
             /*
-             * روابط الموقع تبقى داخل WebView.
+             * روابط موقعك تبقى داخل التطبيق
              */
             if (host != null
                     && (
@@ -848,7 +982,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * إنشاء الكاميرا
+     * إنشاء Intent للكاميرا
      */
     private Intent createCameraIntent() {
 
@@ -943,7 +1077,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * إذن الكاميرا
+     * فحص صلاحية الكاميرا
      */
     private boolean checkCameraPermission() {
 
@@ -991,6 +1125,9 @@ public class MainActivity extends AppCompatActivity {
         Uri[] results = null;
 
 
+        /*
+         * إلغاء
+         */
         if (resultCode != Activity.RESULT_OK) {
 
             uploadMessage.onReceiveValue(
@@ -1006,7 +1143,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * الكاميرا
+         * صورة الكاميرا
          */
         if (data == null) {
 
@@ -1130,10 +1267,14 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * Splash
+         * لا نسمح بالرجوع إلى Splash
+         * أو Offline.
          */
         if (currentUrl != null
-                && currentUrl.equals(SPLASH_URL)) {
+                && (
+                currentUrl.equals(SPLASH_URL)
+                        || currentUrl.equals(OFFLINE_URL)
+        )) {
 
             showExitDialog();
 
@@ -1142,19 +1283,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * Offline
-         */
-        if (currentUrl != null
-                && currentUrl.equals(OFFLINE_URL)) {
-
-            showExitDialog();
-
-            return;
-        }
-
-
-        /*
-         * صفحة سابقة داخل الموقع
+         * إذا توجد صفحة سابقة داخل الموقع
          */
         if (webView.canGoBack()) {
 
@@ -1165,7 +1294,8 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * لا توجد صفحة سابقة
+         * لا توجد صفحة سابقة.
+         * إظهار حوار الخروج.
          */
         showExitDialog();
     }
@@ -1177,10 +1307,13 @@ public class MainActivity extends AppCompatActivity {
     private void showExitDialog() {
 
         new AlertDialog.Builder(this)
+
                 .setTitle("تأكيد الخروج")
+
                 .setMessage(
                         "هل أنت متأكد من الخروج من التطبيق؟"
                 )
+
                 .setPositiveButton(
                         "موافق",
                         (dialog, which) -> {
@@ -1188,10 +1321,12 @@ public class MainActivity extends AppCompatActivity {
                             finish();
                         }
                 )
+
                 .setNegativeButton(
                         "إلغاء",
                         null
                 )
+
                 .show();
     }
 
