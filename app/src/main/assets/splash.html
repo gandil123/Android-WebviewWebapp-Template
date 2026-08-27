@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Qandilalzman</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0a2f1f;
+            font-family: 'Arial', 'Helvetica', sans-serif;
+        }
+
+        .phone-frame {
+            width: 100%;
+            max-width: 420px;
+            height: 780px;
+            border-radius: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+        }
+
+        .splash-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #f9f3b0 0%, #b8d97c 40%, #5f9b4c 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 40px 20px 30px;
+        }
+
+        .content-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .icon-mosque {
+            font-size: 110px;
+            margin-bottom: 18px;
+            filter: drop-shadow(0 8px 12px rgba(0, 40, 0, 0.3));
+        }
+
+        .app-name {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-weight: 800;
+            font-size: 2.4rem;
+            color: #1a4d1a;
+            text-shadow: 0 4px 12px rgba(100, 180, 80, 0.4);
+            text-align: center;
+            background: rgba(255, 255, 240, 0.2);
+            padding: 0 15px;
+            border-radius: 30px;
+            backdrop-filter: blur(2px);
+        }
+
+        .footer-area {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 10px;
+        }
+
+        /* ===== حاوية الكلمة الصغيرة ===== */
+        .slider-container {
+            width: 120px;
+            height: 30px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            background: rgba(255, 255, 240, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(26, 110, 26, 0.1);
+        }
+
+        .slider-text {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #1a4d1a;
+            text-shadow: 0 1px 6px rgba(26, 110, 26, 0.2);
+            padding: 0 8px;
+            white-space: nowrap;
+            animation: slideLeftRight 3s ease-in-out infinite;
+            width: 100%;
+            text-align: center;
+            line-height: 30px;
+        }
+
+        /* ===== حركة من اليسار لليمين ===== */
+        @keyframes slideLeftRight {
+            0% {
+                transform: translateX(-80%);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            40% {
+                transform: translateX(0%);
+                opacity: 1;
+            }
+            60% {
+                transform: translateX(0%);
+                opacity: 1;
+            }
+            90% {
+                transform: translateX(80%);
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(80%);
+                opacity: 0;
+            }
+        }
+
+        /* ===== إصدار التطبيق ===== */
+        .version-code {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #154d15;
+            background: rgba(220, 255, 200, 0.6);
+            padding: 4px 20px;
+            border-radius: 60px;
+            box-shadow: 0 0 20px rgba(70, 200, 70, 0.4);
+            text-shadow: 0 0 12px #b3ffa0, 0 0 20px #7fe07f;
+            animation: glowPulse 2.2s infinite alternate;
+            border: 1px solid rgba(50, 150, 50, 0.3);
+        }
+
+        @keyframes glowPulse {
+            0% {
+                transform: scale(0.98);
+                text-shadow: 0 0 6px #b3ffa0, 0 0 15px #6fcf6f;
+            }
+            100% {
+                transform: scale(1.02);
+                text-shadow: 0 0 18px #d0ffb0, 0 0 32px #43b843;
+            }
+        }
+
+        /* ===== تحسينات للهواتف ===== */
+        @media (max-width: 440px) {
+            .phone-frame {
+                height: 100vh;
+                border-radius: 0;
+            }
+            .icon-mosque {
+                font-size: 90px;
+            }
+            .app-name {
+                font-size: 2rem;
+            }
+            .slider-container {
+                width: 100px;
+                height: 28px;
+            }
+            .slider-text {
+                font-size: 0.75rem;
+                line-height: 28px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .slider-container {
+                width: 85px;
+                height: 24px;
+            }
+            .slider-text {
+                font-size: 0.65rem;
+                line-height: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="splash-screen">
+            <div class="content-center">
+                <span class="icon-mosque">🕌</span>
+                <div class="app-name">Qandilalzman-from</div>
+            </div>
+            <div class="footer-area">
+                <!-- كلمة صغيرة تتحرك من اليسار لليمين -->
+                <div class="slider-container">
+                    <div class="slider-text">Qandil-From</div>
+                </div>
+                <div class="version-code">v3.30.0</div>
+            </div>
+        </div>
+    </div>
+</body>
+  </html>
