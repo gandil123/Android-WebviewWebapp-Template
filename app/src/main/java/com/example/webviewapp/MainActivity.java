@@ -21,7 +21,6 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -39,7 +38,6 @@ import java.util.Locale;
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
-    private ProgressBar progressBar;
 
     private ValueCallback<Uri[]> uploadMessage;
     private Uri cameraUri;
@@ -92,16 +90,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         webView = findViewById(R.id.webView);
-        progressBar = findViewById(R.id.progressBar);
 
         setupWebView();
-
-        /*
-         * إخفاء شريط التحميل عند بداية التطبيق
-         */
-        if (progressBar != null) {
-            progressBar.setVisibility(ProgressBar.GONE);
-        }
 
         /*
          * عرض Splash المحلية فورًا.
@@ -188,9 +178,6 @@ public class MainActivity extends AppCompatActivity {
 
         /*
          * Cache
-         *
-         * نترك WebView يستخدم الكاش الطبيعي
-         * للموقع.
          */
         webSettings.setCacheMode(
                 WebSettings.LOAD_DEFAULT
@@ -292,36 +279,6 @@ public class MainActivity extends AppCompatActivity {
                                 url,
                                 favicon
                         );
-
-                        /*
-                         * صفحات التطبيق المحلية
-                         * لا يظهر معها ProgressBar
-                         */
-                        if (url.startsWith(
-                                "file:///android_asset/"
-                        )) {
-
-                            if (progressBar != null) {
-
-                                progressBar.setVisibility(
-                                        ProgressBar.GONE
-                                );
-                            }
-
-                            return;
-                        }
-
-                        /*
-                         * الموقع الحقيقي
-                         */
-                        if (progressBar != null) {
-
-                            progressBar.setProgress(0);
-
-                            progressBar.setVisibility(
-                                    ProgressBar.VISIBLE
-                            );
-                        }
                     }
 
 
@@ -340,56 +297,23 @@ public class MainActivity extends AppCompatActivity {
                         );
 
                         /*
-                         * الصفحات المحلية
+                         * تم تحميل الموقع بنجاح
                          */
-                        if (url.startsWith(
+                        if (!url.startsWith(
                                 "file:///android_asset/"
                         )) {
 
-                            if (progressBar != null) {
+                            showingOfflinePage = false;
 
-                                progressBar.setVisibility(
-                                        ProgressBar.GONE
-                                );
-                            }
-
-                            return;
+                            CookieManager
+                                    .getInstance()
+                                    .flush();
                         }
-
-                        /*
-                         * الموقع
-                         */
-                        if (progressBar != null) {
-
-                            progressBar.setProgress(100);
-
-                            progressBar.setVisibility(
-                                    ProgressBar.GONE
-                            );
-                        }
-
-                        /*
-                         * تم تحميل الموقع بنجاح
-                         */
-                        showingOfflinePage = false;
-
-                        CookieManager
-                                .getInstance()
-                                .flush();
                     }
 
 
                     /*
                      * خطأ تحميل الصفحة
-                     *
-                     * هذا هو الجزء المهم.
-                     *
-                     * إذا ظهر:
-                     * ERR_ADDRESS_UNREACHABLE
-                     * ERR_INTERNET_DISCONNECTED
-                     * ERR_CONNECTION_FAILED
-                     *
-                     * نعرض offline.html
                      */
                     @Override
                     public void onReceivedError(
@@ -413,14 +337,18 @@ public class MainActivity extends AppCompatActivity {
                         if (Build.VERSION.SDK_INT >=
                                 Build.VERSION_CODES.M) {
 
-                            if (request.isForMainFrame()) {
+                            if (request.isForMainFrame()
+                                    && !showingSplash) {
 
                                 showOfflinePage();
                             }
 
                         } else {
 
-                            showOfflinePage();
+                            if (!showingSplash) {
+
+                                showOfflinePage();
+                            }
                         }
                     }
 
@@ -460,65 +388,6 @@ public class MainActivity extends AppCompatActivity {
          */
         webView.setWebChromeClient(
                 new WebChromeClient() {
-
-                    /*
-                     * ProgressBar
-                     */
-                    @Override
-                    public void onProgressChanged(
-                            WebView view,
-                            int newProgress
-                    ) {
-
-                        super.onProgressChanged(
-                                view,
-                                newProgress
-                        );
-
-                        if (progressBar == null) {
-                            return;
-                        }
-
-                        String currentUrl =
-                                view.getUrl();
-
-                        /*
-                         * لا تعرض ProgressBar
-                         * في Splash أو offline
-                         */
-                        if (currentUrl != null
-                                && currentUrl.startsWith(
-                                "file:///android_asset/"
-                        )) {
-
-                            progressBar.setVisibility(
-                                    ProgressBar.GONE
-                            );
-
-                            return;
-                        }
-
-                        /*
-                         * الموقع الحقيقي
-                         */
-                        if (newProgress >= 100) {
-
-                            progressBar.setVisibility(
-                                    ProgressBar.GONE
-                            );
-
-                        } else {
-
-                            progressBar.setProgress(
-                                    newProgress
-                            );
-
-                            progressBar.setVisibility(
-                                    ProgressBar.VISIBLE
-                            );
-                        }
-                    }
-
 
                     /*
                      * اختيار الملفات والكاميرا
@@ -732,15 +601,6 @@ public class MainActivity extends AppCompatActivity {
 
         showingOfflinePage = false;
 
-        if (progressBar != null) {
-
-            progressBar.setProgress(0);
-
-            progressBar.setVisibility(
-                    ProgressBar.VISIBLE
-            );
-        }
-
         webView.loadUrl(
                 WEBSITE_URL
         );
@@ -764,13 +624,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         showingOfflinePage = true;
-
-        if (progressBar != null) {
-
-            progressBar.setVisibility(
-                    ProgressBar.GONE
-            );
-        }
 
         /*
          * هذه الصفحة موجودة داخل APK
@@ -1252,4 +1105,4 @@ public class MainActivity extends AppCompatActivity {
 
         super.onDestroy();
     }
-                                         }
+                }
