@@ -5,6 +5,9 @@
     <!-- الإنترنت مطلوب لتحميل الموقع -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- فحص حالة اتصال الإنترنت -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- الكاميرا -->
     <uses-permission android:name="android.permission.CAMERA" />
 
