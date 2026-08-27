@@ -1,4 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <string name="app_name">Qandil-From</string>
     <string name="url">https://qandilalzman-from.cc.cd/</string>
+
+    <!-- موارد شاشة البداية -->
+    <string name="app_logo">Qandil-From</string>
+    <string name="app_tagline">قنديل الزمان الرقمية</string>
+
 </resources>
