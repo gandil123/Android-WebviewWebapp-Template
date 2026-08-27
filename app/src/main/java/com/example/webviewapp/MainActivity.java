@@ -45,15 +45,9 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_CAMERA = 101;
     private static final int REQUEST_PERMISSION_CAMERA = 200;
 
-    /*
-     * رابط موقعك
-     */
     private static final String WEBSITE_URL =
             "https://qandilalzman-from.cc.cd/";
 
-    /*
-     * النطاقات التي يجب أن تبقى داخل التطبيق
-     */
     private static final String MAIN_DOMAIN =
             "qandilalzman-from.cc.cd";
 
@@ -70,12 +64,17 @@ public class MainActivity extends AppCompatActivity {
         setupWebView();
 
         /*
-         * إذا كان التطبيق فتح من قبل وهناك صفحة محفوظة،
-         * نستعيدها بدل تحميل الموقع من جديد.
+         * استعادة حالة WebView إذا كانت موجودة
          */
         if (savedInstanceState != null) {
+
             webView.restoreState(savedInstanceState);
+
         } else {
+
+            /*
+             * تحميل الموقع الأساسي
+             */
             webView.loadUrl(WEBSITE_URL);
         }
     }
@@ -96,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setDomStorageEnabled(true);
 
         /*
-         * الملفات والمحتوى
+         * الملفات والمحتوى المحلي
          */
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
@@ -107,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setDatabaseEnabled(true);
 
         /*
-         * تحسين عرض الموقع على الهاتف
+         * تحسين عرض الموقع
          */
         webSettings.setLoadWithOverviewMode(true);
         webSettings.setUseWideViewPort(true);
@@ -125,10 +124,10 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         /*
-         * السماح بالمحتوى المختلط عند الحاجة.
-         * يمكن إيقافه لاحقًا إذا كان الموقع بالكامل HTTPS.
+         * Mixed Content
          */
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+
             webSettings.setMixedContentMode(
                     WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             );
@@ -140,17 +139,20 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setSaveFormData(true);
 
         /*
-         * الموقع الجغرافي إذا احتاجه الموقع
+         * الموقع الجغرافي
          */
         webSettings.setGeolocationEnabled(true);
 
         /*
          * Cookies
          */
-        CookieManager cookieManager = CookieManager.getInstance();
+        CookieManager cookieManager =
+                CookieManager.getInstance();
+
         cookieManager.setAcceptCookie(true);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+
             cookieManager.setAcceptThirdPartyCookies(
                     webView,
                     true
@@ -159,7 +161,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * التحكم في فتح الروابط
+         * WebViewClient
          */
         webView.setWebViewClient(new WebViewClient() {
 
@@ -171,18 +173,13 @@ public class MainActivity extends AppCompatActivity {
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 
-                    Uri uri = request.getUrl();
-
-                    return handleUrl(uri);
+                    return handleUrl(request.getUrl());
                 }
 
                 return false;
             }
 
 
-            /*
-             * دعم Android القديم
-             */
             @Override
             public boolean shouldOverrideUrlLoading(
                     WebView view,
@@ -200,9 +197,14 @@ public class MainActivity extends AppCompatActivity {
                     android.graphics.Bitmap favicon
             ) {
 
-                super.onPageStarted(view, url, favicon);
+                super.onPageStarted(
+                        view,
+                        url,
+                        favicon
+                );
 
                 if (progressBar != null) {
+
                     progressBar.setVisibility(
                             ProgressBar.VISIBLE
                     );
@@ -216,24 +218,31 @@ public class MainActivity extends AppCompatActivity {
                     String url
             ) {
 
-                super.onPageFinished(view, url);
+                super.onPageFinished(
+                        view,
+                        url
+                );
 
                 if (progressBar != null) {
+
                     progressBar.setProgress(100);
+
                     progressBar.setVisibility(
                             ProgressBar.GONE
                     );
                 }
 
-                /*
-                 * مزامنة Cookies
-                 */
                 CookieManager
                         .getInstance()
                         .flush();
             }
 
 
+            /*
+             * أهم جزء:
+             * عند فشل تحميل الموقع بسبب عدم وجود الإنترنت
+             * نعرض صفحة offline الموجودة داخل التطبيق.
+             */
             @Override
             public void onReceivedError(
                     WebView view,
@@ -247,30 +256,38 @@ public class MainActivity extends AppCompatActivity {
                         error
                 );
 
-                /*
-                 * لا نعرض Toast لكل ملف أو مورد فاشل،
-                 * فقط الصفحة الرئيسية.
-                 */
                 if (request.isForMainFrame()) {
 
-                    Toast.makeText(
-                            MainActivity.this,
-                            "تعذر تحميل الصفحة. تحقق من اتصال الإنترنت.",
-                            Toast.LENGTH_LONG
-                    ).show();
+                    showOfflinePage();
                 }
+            }
+
+
+            /*
+             * دعم إصدارات Android القديمة
+             */
+            @Override
+            public void onReceivedError(
+                    WebView view,
+                    int errorCode,
+                    String description,
+                    String failingUrl
+            ) {
+
+                super.onReceivedError(
+                        view,
+                        errorCode,
+                        description,
+                        failingUrl
+                );
+
+                showOfflinePage();
             }
         });
 
 
         /*
          * WebChromeClient
-         *
-         * مسؤول عن:
-         * - رفع الملفات
-         * - الكاميرا
-         * - progress
-         * - JavaScript dialogs
          */
         webView.setWebChromeClient(new WebChromeClient() {
 
@@ -308,7 +325,7 @@ public class MainActivity extends AppCompatActivity {
 
 
             /*
-             * اختيار الملفات من الموقع
+             * رفع الملفات والكاميرا
              */
             @Override
             public boolean onShowFileChooser(
@@ -317,10 +334,6 @@ public class MainActivity extends AppCompatActivity {
                     FileChooserParams fileChooserParams
             ) {
 
-                /*
-                 * إذا كان هناك اختيار قديم مفتوح
-                 * نلغيه أولًا.
-                 */
                 if (uploadMessage != null) {
 
                     uploadMessage.onReceiveValue(null);
@@ -330,17 +343,13 @@ public class MainActivity extends AppCompatActivity {
 
                 uploadMessage = filePathCallback;
 
-                /*
-                 * فحص هل الموقع يسمح بالكاميرا
-                 */
                 boolean canCapture =
                         fileChooserParams.isCaptureEnabled();
 
-                /*
-                 * نفتح اختيار الملفات والصور.
-                 */
                 Intent fileIntent =
-                        new Intent(Intent.ACTION_GET_CONTENT);
+                        new Intent(
+                                Intent.ACTION_GET_CONTENT
+                        );
 
                 fileIntent.addCategory(
                         Intent.CATEGORY_OPENABLE
@@ -348,9 +357,6 @@ public class MainActivity extends AppCompatActivity {
 
                 fileIntent.setType("*/*");
 
-                /*
-                 * السماح باختيار أكثر من ملف
-                 */
                 fileIntent.putExtra(
                         Intent.EXTRA_ALLOW_MULTIPLE,
                         true
@@ -358,8 +364,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                 /*
-                 * إذا كان الموقع يطلب Capture
-                 * نحاول توفير خيار الكاميرا.
+                 * الكاميرا
                  */
                 if (canCapture) {
 
@@ -392,14 +397,11 @@ public class MainActivity extends AppCompatActivity {
 
                                 return true;
 
-                            } catch (ActivityNotFoundException e) {
-
-                                /*
-                                 * إذا لم يوجد تطبيق كاميرا
-                                 * نكمل بمنتقي الملفات.
-                                 */
+                            } catch (
+                                    ActivityNotFoundException e
+                            ) {
+                                // نكمل إلى اختيار الملفات
                             }
-
                         }
 
                     } else {
@@ -424,10 +426,15 @@ public class MainActivity extends AppCompatActivity {
                             REQUEST_CODE_FILE
                     );
 
-                } catch (ActivityNotFoundException e) {
+                } catch (
+                        ActivityNotFoundException e
+                ) {
 
-                    uploadMessage.onReceiveValue(null);
-                    uploadMessage = null;
+                    if (uploadMessage != null) {
+
+                        uploadMessage.onReceiveValue(null);
+                        uploadMessage = null;
+                    }
 
                     Toast.makeText(
                             MainActivity.this,
@@ -439,6 +446,33 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+    }
+
+
+    /*
+     * عرض صفحة عدم الاتصال
+     *
+     * الصفحة موجودة داخل:
+     * app/src/main/assets/offline.html
+     *
+     * لذلك لا تحتاج إلى الإنترنت.
+     */
+    private void showOfflinePage() {
+
+        if (webView == null) {
+            return;
+        }
+
+        if (progressBar != null) {
+
+            progressBar.setVisibility(
+                    ProgressBar.GONE
+            );
+        }
+
+        webView.loadUrl(
+                "file:///android_asset/offline.html"
+        );
     }
 
 
@@ -459,7 +493,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * روابط موقعنا تبقى داخل التطبيق
+         * روابط الموقع تبقى داخل WebView
          */
         if (scheme.equalsIgnoreCase("http")
                 || scheme.equalsIgnoreCase("https")) {
@@ -477,7 +511,7 @@ public class MainActivity extends AppCompatActivity {
 
 
             /*
-             * الروابط الخارجية تفتح خارج التطبيق
+             * الروابط الخارجية
              */
             try {
 
@@ -489,7 +523,9 @@ public class MainActivity extends AppCompatActivity {
 
                 startActivity(intent);
 
-            } catch (ActivityNotFoundException e) {
+            } catch (
+                    ActivityNotFoundException e
+            ) {
 
                 Toast.makeText(
                         MainActivity.this,
@@ -503,7 +539,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * الهاتف
+         * الهاتف والبريد والرسائل والموقع
          */
         if (scheme.equalsIgnoreCase("tel")
                 || scheme.equalsIgnoreCase("mailto")
@@ -520,7 +556,9 @@ public class MainActivity extends AppCompatActivity {
 
                 startActivity(intent);
 
-            } catch (ActivityNotFoundException e) {
+            } catch (
+                    ActivityNotFoundException e
+            ) {
 
                 Toast.makeText(
                         MainActivity.this,
@@ -534,7 +572,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * أي scheme آخر نحاول فتحه خارجيًا
+         * أي scheme آخر
          */
         try {
 
@@ -546,7 +584,9 @@ public class MainActivity extends AppCompatActivity {
 
             startActivity(intent);
 
-        } catch (ActivityNotFoundException ignored) {
+        } catch (
+                ActivityNotFoundException ignored
+        ) {
         }
 
         return true;
@@ -584,7 +624,8 @@ public class MainActivity extends AppCompatActivity {
             cameraUri =
                     FileProvider.getUriForFile(
                             this,
-                            getPackageName() + ".fileprovider",
+                            getPackageName()
+                                    + ".fileprovider",
                             photoFile
                     );
 
@@ -693,19 +734,20 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * إذا تم إلغاء العملية
+         * إلغاء العملية
          */
         if (resultCode != Activity.RESULT_OK) {
 
             uploadMessage.onReceiveValue(null);
             uploadMessage = null;
+            cameraUri = null;
 
             return;
         }
 
 
         /*
-         * اختيار الكاميرا
+         * صورة الكاميرا
          */
         if (data == null) {
 
@@ -724,7 +766,8 @@ public class MainActivity extends AppCompatActivity {
             if (data.getClipData() != null) {
 
                 int count =
-                        data.getClipData().getItemCount();
+                        data.getClipData()
+                                .getItemCount();
 
                 results =
                         new Uri[count];
@@ -744,10 +787,9 @@ public class MainActivity extends AppCompatActivity {
              */
             else if (data.getData() != null) {
 
-                results =
-                        new Uri[]{
-                                data.getData()
-                        };
+                results = new Uri[]{
+                        data.getData()
+                };
             }
         }
 
@@ -762,7 +804,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * نتيجة طلب صلاحية الكاميرا
+     * نتيجة صلاحية الكاميرا
      */
     @Override
     public void onRequestPermissionsResult(
@@ -843,7 +885,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * تنظيف WebView عند إغلاق التطبيق
+     * تنظيف WebView
      */
     @Override
     protected void onDestroy() {
@@ -851,13 +893,16 @@ public class MainActivity extends AppCompatActivity {
         if (webView != null) {
 
             webView.stopLoading();
+
             webView.setWebChromeClient(null);
+
             webView.setWebViewClient(null);
+
             webView.destroy();
 
-                    webView = null;
+            webView = null;
         }
 
         super.onDestroy();
     }
-            }
+    }
