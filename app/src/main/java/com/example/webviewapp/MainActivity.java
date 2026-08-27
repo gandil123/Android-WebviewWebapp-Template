@@ -3,7 +3,6 @@ package com.qandilalzman.digital;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
@@ -44,26 +43,20 @@ public class MainActivity extends AppCompatActivity {
     private ValueCallback<Uri[]> uploadMessage;
     private Uri cameraUri;
 
-    /*
-     * منع إعادة تحميل صفحة عدم الاتصال بشكل متكرر
-     */
-    private boolean showingOfflinePage = false;
-
     private static final int REQUEST_CODE_FILE = 100;
-    private static final int REQUEST_CODE_CAMERA = 101;
     private static final int REQUEST_PERMISSION_CAMERA = 200;
 
-    /*
-     * رابط الموقع
-     */
     private static final String WEBSITE_URL =
             "https://qandilalzman-from.cc.cd/";
 
-    /*
-     * النطاق الرئيسي
-     */
     private static final String MAIN_DOMAIN =
             "qandilalzman-from.cc.cd";
+
+    /*
+     * مدة شاشة البداية
+     * 2500 = ثانيتان ونصف
+     */
+    private static final long SPLASH_DURATION = 2500;
 
 
     @Override
@@ -78,68 +71,51 @@ public class MainActivity extends AppCompatActivity {
         setupWebView();
 
         /*
-         * إذا لم يوجد اتصال بالإنترنت
-         * نعرض الصفحة المحلية مباشرة.
-         *
-         * مهم:
-         * لا نستعيد صفحة تسجيل الدخول المحفوظة
-         * عندما يكون الجهاز بدون اتصال.
+         * إخفاء WebView وشريط التحميل أثناء شاشة البداية
          */
-        if (!isNetworkAvailable()) {
+        webView.setVisibility(WebView.VISIBLE);
 
-            showOfflinePage();
-
-        } else {
-
-            /*
-             * يوجد اتصال.
-             *
-             * إذا كانت هناك حالة محفوظة نستعيدها،
-             * وإلا نفتح الموقع.
-             */
-            if (savedInstanceState != null) {
-
-                webView.restoreState(savedInstanceState);
-
-            } else {
-
-                webView.loadUrl(WEBSITE_URL);
-            }
+        if (progressBar != null) {
+            progressBar.setVisibility(ProgressBar.GONE);
         }
+
+        /*
+         * عرض شاشة البداية المحلية
+         * ولا تحتاج إلى الإنترنت
+         */
+        webView.loadUrl(
+                "file:///android_asset/splash.html"
+        );
+
+        /*
+         * بعد 2.5 ثانية نقرر:
+         *
+         * يوجد إنترنت → الموقع
+         * لا يوجد إنترنت → offline.html
+         */
+        webView.postDelayed(
+                new Runnable() {
+                    @Override
+                    public void run() {
+
+                        if (isNetworkAvailable()) {
+
+                            loadWebsite();
+
+                        } else {
+
+                            showOfflinePage();
+                        }
+                    }
+                },
+                SPLASH_DURATION
+        );
     }
 
 
     /*
-     * فحص وجود اتصال بالشبكة
+     * تجهيز WebView
      */
-    private boolean isNetworkAvailable() {
-
-        ConnectivityManager connectivityManager =
-                (ConnectivityManager)
-                        getSystemService(Context.CONNECTIVITY_SERVICE);
-
-        if (connectivityManager == null) {
-            return false;
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-
-            Network network =
-                    connectivityManager.getActiveNetwork();
-
-            return network != null;
-
-        } else {
-
-            android.net.NetworkInfo networkInfo =
-                    connectivityManager.getActiveNetworkInfo();
-
-            return networkInfo != null
-                    && networkInfo.isConnected();
-        }
-    }
-
-
     private void setupWebView() {
 
         WebSettings webSettings =
@@ -156,13 +132,13 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setDomStorageEnabled(true);
 
         /*
-         * الملفات والمحتوى المحلي
+         * الملفات
          */
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
 
         /*
-         * قاعدة البيانات
+         * Database
          */
         webSettings.setDatabaseEnabled(true);
 
@@ -250,7 +226,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                     /*
-                     * دعم Android القديم
+                     * Android القديم
                      */
                     @Override
                     public boolean shouldOverrideUrlLoading(
@@ -276,6 +252,17 @@ public class MainActivity extends AppCompatActivity {
                                 url,
                                 favicon
                         );
+
+                        /*
+                         * لا نعرض ProgressBar
+                         * أثناء splash أو offline
+                         */
+                        if (url.startsWith(
+                                "file:///android_asset/"
+                        )) {
+
+                            return;
+                        }
 
                         if (progressBar != null) {
 
@@ -313,10 +300,8 @@ public class MainActivity extends AppCompatActivity {
 
 
                     /*
-                     * خطأ تحميل الصفحة
-                     *
-                     * إذا أصبح الموقع غير متاح
-                     * نعرض الصفحة المحلية.
+                     * إذا فشل الموقع في التحميل
+                     * نعرض offline.html
                      */
                     @Override
                     public void onReceivedError(
@@ -331,13 +316,9 @@ public class MainActivity extends AppCompatActivity {
                                 error
                         );
 
-                        if (Build.VERSION.SDK_INT >=
-                                Build.VERSION_CODES.LOLLIPOP) {
+                        if (request.isForMainFrame()) {
 
-                            if (request.isForMainFrame()) {
-
-                                showOfflinePage();
-                            }
+                            showOfflinePage();
                         }
                     }
 
@@ -368,11 +349,6 @@ public class MainActivity extends AppCompatActivity {
 
         /*
          * WebChromeClient
-         *
-         * مسؤول عن:
-         * - رفع الملفات
-         * - الكاميرا
-         * - شريط التقدم
          */
         webView.setWebChromeClient(
                 new WebChromeClient() {
@@ -387,6 +363,28 @@ public class MainActivity extends AppCompatActivity {
                                 view,
                                 newProgress
                         );
+
+                        /*
+                         * لا نعرض الشريط أثناء
+                         * splash أو offline
+                         */
+                        String currentUrl =
+                                view.getUrl();
+
+                        if (currentUrl != null
+                                && currentUrl.startsWith(
+                                "file:///android_asset/"
+                        )) {
+
+                            if (progressBar != null) {
+
+                                progressBar.setVisibility(
+                                        ProgressBar.GONE
+                                );
+                            }
+
+                            return;
+                        }
 
                         if (progressBar != null) {
 
@@ -544,30 +542,69 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * =====================================================
-     * صفحة عدم الاتصال بالإنترنت
-     * =====================================================
-     *
-     * الصفحة موجودة هنا:
-     *
-     * app/src/main/assets/offline.html
-     *
-     * وهي صفحة محلية بالكامل.
+     * فحص الإنترنت
+     */
+    private boolean isNetworkAvailable() {
+
+        ConnectivityManager connectivityManager =
+                (ConnectivityManager)
+                        getSystemService(
+                                CONNECTIVITY_SERVICE
+                        );
+
+        if (connectivityManager == null) {
+            return false;
+        }
+
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.M) {
+
+            Network network =
+                    connectivityManager
+                            .getActiveNetwork();
+
+            return network != null;
+        }
+
+        android.net.NetworkInfo networkInfo =
+                connectivityManager
+                        .getActiveNetworkInfo();
+
+        return networkInfo != null
+                && networkInfo.isConnected();
+    }
+
+
+    /*
+     * تحميل الموقع
+     */
+    private void loadWebsite() {
+
+        if (webView == null) {
+            return;
+        }
+
+        if (progressBar != null) {
+
+            progressBar.setVisibility(
+                    ProgressBar.VISIBLE
+            );
+        }
+
+        webView.loadUrl(
+                WEBSITE_URL
+        );
+    }
+
+
+    /*
+     * عرض صفحة عدم الاتصال
      */
     private void showOfflinePage() {
 
         if (webView == null) {
             return;
         }
-
-        /*
-         * منع التكرار
-         */
-        if (showingOfflinePage) {
-            return;
-        }
-
-        showingOfflinePage = true;
 
         if (progressBar != null) {
 
@@ -576,11 +613,6 @@ public class MainActivity extends AppCompatActivity {
             );
         }
 
-        /*
-         * تحميل الصفحة من داخل التطبيق
-         *
-         * لا تحتاج إلى الإنترنت.
-         */
         webView.loadUrl(
                 "file:///android_asset/offline.html"
         );
@@ -613,10 +645,6 @@ public class MainActivity extends AppCompatActivity {
             String host =
                     uri.getHost();
 
-            /*
-             * رابط الموقع الرئيسي
-             * يبقى داخل التطبيق.
-             */
             if (host != null
                     && (
                     host.equalsIgnoreCase(
@@ -731,7 +759,6 @@ public class MainActivity extends AppCompatActivity {
             return null;
         }
 
-
         try {
 
             File photoFile =
@@ -741,7 +768,6 @@ public class MainActivity extends AppCompatActivity {
                 return null;
             }
 
-
             cameraUri =
                     FileProvider.getUriForFile(
                             this,
@@ -749,7 +775,6 @@ public class MainActivity extends AppCompatActivity {
                                     + ".fileprovider",
                             photoFile
                     );
-
 
             intent.putExtra(
                     MediaStore.EXTRA_OUTPUT,
@@ -791,12 +816,10 @@ public class MainActivity extends AppCompatActivity {
         String imageFileName =
                 "Qandil_" + timeStamp + "_";
 
-
         File storageDir =
                 getExternalFilesDir(
                         Environment.DIRECTORY_PICTURES
                 );
-
 
         return File.createTempFile(
                 imageFileName,
@@ -825,7 +848,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * نتيجة اختيار الملفات أو الكاميرا
+     * نتيجة اختيار الملفات والكاميرا
      */
     @Override
     protected void onActivityResult(
@@ -840,22 +863,19 @@ public class MainActivity extends AppCompatActivity {
                 data
         );
 
-
         if (requestCode != REQUEST_CODE_FILE) {
             return;
         }
-
 
         if (uploadMessage == null) {
             return;
         }
 
-
         Uri[] results = null;
 
 
         /*
-         * إلغاء العملية
+         * إلغاء
          */
         if (resultCode != Activity.RESULT_OK) {
 
@@ -871,7 +891,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * صورة الكاميرا
+         * الكاميرا
          */
         if (data == null) {
 
@@ -945,7 +965,6 @@ public class MainActivity extends AppCompatActivity {
                 grantResults
         );
 
-
         if (requestCode
                 == REQUEST_PERMISSION_CAMERA) {
 
@@ -977,17 +996,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
 
-        /*
-         * إذا كانت صفحة عدم الاتصال ظاهرة،
-         * لا نرجع إلى صفحة تسجيل الدخول القديمة.
-         */
-        if (showingOfflinePage) {
-
-            super.onBackPressed();
-            return;
-        }
-
-
         if (webView != null
                 && webView.canGoBack()) {
 
@@ -1009,10 +1017,9 @@ public class MainActivity extends AppCompatActivity {
     ) {
 
         /*
-         * لا نحفظ صفحة offline
+         * لا نحفظ splash كصفحة حالية
          */
-        if (webView != null
-                && !showingOfflinePage) {
+        if (webView != null) {
 
             webView.saveState(
                     outState
@@ -1046,4 +1053,4 @@ public class MainActivity extends AppCompatActivity {
 
         super.onDestroy();
     }
-            }
+                    }
