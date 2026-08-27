@@ -3,10 +3,8 @@ package com.qandilalzman.digital;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -49,46 +47,30 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_FILE = 100;
     private static final int REQUEST_PERMISSION_CAMERA = 200;
 
-    /*
-     * رابط الموقع
-     */
     private static final String WEBSITE_URL =
             "https://qandilalzman-from.cc.cd/";
 
-    /*
-     * نطاق الموقع
-     */
     private static final String MAIN_DOMAIN =
             "qandilalzman-from.cc.cd";
 
-    /*
-     * صفحات التطبيق المحلية
-     */
     private static final String SPLASH_URL =
             "file:///android_asset/splash.html";
 
     private static final String OFFLINE_URL =
             "file:///android_asset/offline.html";
 
-    /*
-     * مدة شاشة البداية
-     */
     private static final long SPLASH_DURATION = 2500;
 
-    /*
-     * حالة Splash
-     */
     private boolean showingSplash = false;
-
-    /*
-     * حالة Offline
-     */
     private boolean showingOfflinePage = false;
 
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+
     /*
-     * مراقبة عودة الإنترنت
+     * منع إعادة تحميل الموقع عدة مرات
      */
-    private BroadcastReceiver networkReceiver;
+    private boolean isReturningOnline = false;
 
 
     @Override
@@ -101,23 +83,16 @@ public class MainActivity extends AppCompatActivity {
 
         setupWebView();
 
-
         /*
-         * تشغيل Splash مرة واحدة فقط
-         * عند إنشاء التطبيق.
+         * Splash تظهر فقط عند تشغيل التطبيق.
          */
         showingSplash = true;
         showingOfflinePage = false;
 
         webView.loadUrl(SPLASH_URL);
 
-
         /*
-         * بعد انتهاء Splash:
-         *
-         * يوجد إنترنت → الموقع
-         *
-         * لا يوجد إنترنت → Offline
+         * بعد انتهاء Splash.
          */
         webView.postDelayed(new Runnable() {
 
@@ -130,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
 
                 showingSplash = false;
 
-                if (isNetworkAvailable()) {
+                if (isInternetAvailable()) {
 
                     loadWebsite();
 
@@ -138,77 +113,14 @@ public class MainActivity extends AppCompatActivity {
 
                     showOfflinePage();
                 }
-
             }
 
         }, SPLASH_DURATION);
 
-
         /*
-         * مراقبة عودة الإنترنت.
+         * بدء مراقبة الإنترنت.
          */
-        networkReceiver = new BroadcastReceiver() {
-
-            @Override
-            public void onReceive(
-                    Context context,
-                    Intent intent
-            ) {
-
-                if (webView == null) {
-                    return;
-                }
-
-                /*
-                 * لا نتدخل أثناء Splash.
-                 */
-                if (showingSplash) {
-                    return;
-                }
-
-                /*
-                 * إذا عاد الإنترنت وكان المستخدم
-                 * في صفحة Offline → نفتح الموقع.
-                 */
-                if (isNetworkAvailable()) {
-
-                    String currentUrl =
-                            webView.getUrl();
-
-                    if (currentUrl != null
-                            && currentUrl.equals(OFFLINE_URL)) {
-
-                        showingOfflinePage = false;
-
-                        loadWebsite();
-                    }
-                }
-            }
-        };
-
-
-        /*
-         * تسجيل مراقب الإنترنت.
-         */
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-
-            registerReceiver(
-                    networkReceiver,
-                    new IntentFilter(
-                            ConnectivityManager.CONNECTIVITY_ACTION
-                    ),
-                    Context.RECEIVER_NOT_EXPORTED
-            );
-
-        } else {
-
-            registerReceiver(
-                    networkReceiver,
-                    new IntentFilter(
-                            ConnectivityManager.CONNECTIVITY_ACTION
-                    )
-            );
-        }
+        registerNetworkCallback();
     }
 
 
@@ -220,58 +132,30 @@ public class MainActivity extends AppCompatActivity {
         WebSettings webSettings =
                 webView.getSettings();
 
-
-        /*
-         * JavaScript
-         */
         webSettings.setJavaScriptEnabled(true);
 
-
-        /*
-         * Local Storage
-         */
         webSettings.setDomStorageEnabled(true);
 
-
-        /*
-         * الملفات
-         */
         webSettings.setAllowFileAccess(true);
+
         webSettings.setAllowContentAccess(true);
 
-
-        /*
-         * Database
-         */
         webSettings.setDatabaseEnabled(true);
 
-
-        /*
-         * تحسين عرض الموقع
-         */
         webSettings.setLoadWithOverviewMode(true);
+
         webSettings.setUseWideViewPort(true);
 
-
-        /*
-         * التكبير
-         */
         webSettings.setSupportZoom(true);
+
         webSettings.setBuiltInZoomControls(true);
+
         webSettings.setDisplayZoomControls(false);
 
-
-        /*
-         * Cache
-         */
         webSettings.setCacheMode(
                 WebSettings.LOAD_DEFAULT
         );
 
-
-        /*
-         * Mixed Content
-         */
         if (Build.VERSION.SDK_INT >=
                 Build.VERSION_CODES.LOLLIPOP) {
 
@@ -280,16 +164,8 @@ public class MainActivity extends AppCompatActivity {
             );
         }
 
-
-        /*
-         * حفظ بيانات النماذج
-         */
         webSettings.setSaveFormData(true);
 
-
-        /*
-         * الموقع الجغرافي
-         */
         webSettings.setGeolocationEnabled(true);
 
 
@@ -317,9 +193,6 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(
                 new WebViewClient() {
 
-                    /*
-                     * اعتراض الروابط الحديثة
-                     */
                     @Override
                     public boolean shouldOverrideUrlLoading(
                             WebView view,
@@ -354,27 +227,6 @@ public class MainActivity extends AppCompatActivity {
 
 
                     /*
-                     * بداية تحميل الصفحة
-                     *
-                     * لا نقوم هنا بتحميل Splash.
-                     * لذلك لن تظهر Splash عند التنقل.
-                     */
-                    @Override
-                    public void onPageStarted(
-                            WebView view,
-                            String url,
-                            android.graphics.Bitmap favicon
-                    ) {
-
-                        super.onPageStarted(
-                                view,
-                                url,
-                                favicon
-                        );
-                    }
-
-
-                    /*
                      * انتهاء تحميل الصفحة
                      */
                     @Override
@@ -389,7 +241,7 @@ public class MainActivity extends AppCompatActivity {
                         );
 
                         /*
-                         * الموقع الحقيقي
+                         * إذا كان موقعك
                          */
                         if (!url.startsWith(
                                 "file:///android_asset/"
@@ -405,7 +257,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                     /*
-                     * خطأ تحميل الصفحة
+                     * خطأ تحميل الصفحة الرئيسية
                      */
                     @Override
                     public void onReceivedError(
@@ -420,12 +272,12 @@ public class MainActivity extends AppCompatActivity {
                                 error
                         );
 
-                        /*
-                         * نهتم فقط بالصفحة الرئيسية.
-                         */
                         if (Build.VERSION.SDK_INT >=
                                 Build.VERSION_CODES.M) {
 
+                            /*
+                             * نهتم فقط بالصفحة الرئيسية.
+                             */
                             if (request.isForMainFrame()
                                     && !showingSplash) {
 
@@ -476,7 +328,7 @@ public class MainActivity extends AppCompatActivity {
                 new WebChromeClient() {
 
                     /*
-                     * اختيار الملفات والكاميرا
+                     * الكاميرا ورفع الملفات
                      */
                     @Override
                     public boolean onShowFileChooser(
@@ -485,9 +337,6 @@ public class MainActivity extends AppCompatActivity {
                             FileChooserParams fileChooserParams
                     ) {
 
-                        /*
-                         * إلغاء اختيار سابق
-                         */
                         if (uploadMessage != null) {
 
                             uploadMessage.onReceiveValue(
@@ -501,9 +350,6 @@ public class MainActivity extends AppCompatActivity {
                                 filePathCallback;
 
 
-                        /*
-                         * هل الموقع طلب الكاميرا؟
-                         */
                         boolean canCapture =
                                 fileChooserParams
                                         .isCaptureEnabled();
@@ -566,7 +412,7 @@ public class MainActivity extends AppCompatActivity {
                                     } catch (
                                             ActivityNotFoundException e
                                     ) {
-                                        // نكمل إلى منتقي الملفات
+                                        // نتابع بمنتقي الملفات
                                     }
                                 }
 
@@ -623,40 +469,197 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * فحص حالة الإنترنت
+     * مراقبة الإنترنت
      */
-    private boolean isNetworkAvailable() {
+    private void registerNetworkCallback() {
 
-        ConnectivityManager connectivityManager =
+        if (Build.VERSION.SDK_INT <
+                Build.VERSION_CODES.N) {
+
+            return;
+        }
+
+        connectivityManager =
                 (ConnectivityManager)
                         getSystemService(
-                                CONNECTIVITY_SERVICE
+                                Context.CONNECTIVITY_SERVICE
                         );
 
         if (connectivityManager == null) {
+            return;
+        }
+
+
+        networkCallback =
+                new ConnectivityManager.NetworkCallback() {
+
+                    /*
+                     * ظهر اتصال بالشبكة
+                     */
+                    @Override
+                    public void onAvailable(
+                            Network network
+                    ) {
+
+                        runOnUiThread(
+                                new Runnable() {
+
+                                    @Override
+                                    public void run() {
+
+                                        handleInternetAvailable();
+                                    }
+                                }
+                        );
+                    }
+
+
+                    /*
+                     * أصبحت الشبكة غير متاحة
+                     */
+                    @Override
+                    public void onLost(
+                            Network network
+                    ) {
+
+                        runOnUiThread(
+                                new Runnable() {
+
+                                    @Override
+                                    public void run() {
+
+                                        handleInternetLost();
+                                    }
+                                }
+                        );
+                    }
+                };
+
+
+        try {
+
+            connectivityManager.registerDefaultNetworkCallback(
+                    networkCallback
+            );
+
+        } catch (Exception ignored) {
+        }
+    }
+
+
+    /*
+     * الإنترنت عاد
+     */
+    private void handleInternetAvailable() {
+
+        if (webView == null) {
+            return;
+        }
+
+        if (showingSplash) {
+            return;
+        }
+
+        if (isReturningOnline) {
+            return;
+        }
+
+        String currentUrl =
+                webView.getUrl();
+
+        /*
+         * إذا كنا في Offline
+         */
+        if (currentUrl != null
+                && currentUrl.equals(OFFLINE_URL)) {
+
+            isReturningOnline = true;
+
+            showingOfflinePage = false;
+
+            loadWebsite();
+
+            /*
+             * السماح بمحاولة جديدة لاحقًا.
+             */
+            webView.postDelayed(
+                    new Runnable() {
+
+                        @Override
+                        public void run() {
+
+                            isReturningOnline = false;
+                        }
+
+                    },
+                    1500
+            );
+        }
+    }
+
+
+    /*
+     * الإنترنت انقطع
+     */
+    private void handleInternetLost() {
+
+        if (webView == null) {
+            return;
+        }
+
+        if (showingSplash) {
+            return;
+        }
+
+        String currentUrl =
+                webView.getUrl();
+
+        /*
+         * إذا كنا بالفعل في Offline
+         */
+        if (currentUrl != null
+                && currentUrl.equals(OFFLINE_URL)) {
+
+            return;
+        }
+
+        /*
+         * عرض Offline فورًا.
+         */
+        showOfflinePage();
+    }
+
+
+    /*
+     * فحص الإنترنت الحقيقي
+     */
+    private boolean isInternetAvailable() {
+
+        ConnectivityManager cm =
+                (ConnectivityManager)
+                        getSystemService(
+                                Context.CONNECTIVITY_SERVICE
+                        );
+
+        if (cm == null) {
             return false;
         }
 
 
-        /*
-         * Android 6 وما بعده
-         */
         if (Build.VERSION.SDK_INT >=
                 Build.VERSION_CODES.M) {
 
             Network network =
-                    connectivityManager
-                            .getActiveNetwork();
+                    cm.getActiveNetwork();
 
             if (network == null) {
                 return false;
             }
 
             NetworkCapabilities capabilities =
-                    connectivityManager
-                            .getNetworkCapabilities(
-                                    network
-                            );
+                    cm.getNetworkCapabilities(
+                            network
+                    );
 
             if (capabilities == null) {
                 return false;
@@ -664,16 +667,15 @@ public class MainActivity extends AppCompatActivity {
 
             return capabilities.hasCapability(
                     NetworkCapabilities.NET_CAPABILITY_INTERNET
+            )
+                    && capabilities.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
             );
         }
 
 
-        /*
-         * Android القديم
-         */
         android.net.NetworkInfo networkInfo =
-                connectivityManager
-                        .getActiveNetworkInfo();
+                cm.getActiveNetworkInfo();
 
         return networkInfo != null
                 && networkInfo.isConnected();
@@ -706,9 +708,6 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        /*
-         * منع التكرار
-         */
         if (showingOfflinePage) {
             return;
         }
@@ -749,7 +748,7 @@ public class MainActivity extends AppCompatActivity {
 
 
             /*
-             * روابط موقعك تبقى داخل WebView.
+             * روابط الموقع تبقى داخل WebView.
              */
             if (host != null
                     && (
@@ -767,7 +766,6 @@ public class MainActivity extends AppCompatActivity {
 
             /*
              * الروابط الخارجية
-             * تفتح خارج التطبيق.
              */
             try {
 
@@ -850,7 +848,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * إنشاء Intent للكاميرا
+     * إنشاء الكاميرا
      */
     private Intent createCameraIntent() {
 
@@ -860,9 +858,6 @@ public class MainActivity extends AppCompatActivity {
                 );
 
 
-        /*
-         * التأكد من وجود تطبيق كاميرا
-         */
         if (intent.resolveActivity(
                 getPackageManager()
         ) == null) {
@@ -881,9 +876,6 @@ public class MainActivity extends AppCompatActivity {
             }
 
 
-            /*
-             * URI آمن للكاميرا
-             */
             cameraUri =
                     FileProvider.getUriForFile(
                             this,
@@ -921,7 +913,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * إنشاء ملف الصورة المؤقت
+     * إنشاء ملف الصورة
      */
     private File createImageFile()
             throws IOException {
@@ -951,7 +943,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * فحص إذن الكاميرا
+     * إذن الكاميرا
      */
     private boolean checkCameraPermission() {
 
@@ -970,7 +962,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * نتيجة اختيار الملفات أو الكاميرا
+     * نتيجة اختيار الملفات
      */
     @Override
     protected void onActivityResult(
@@ -999,9 +991,6 @@ public class MainActivity extends AppCompatActivity {
         Uri[] results = null;
 
 
-        /*
-         * إلغاء الاختيار
-         */
         if (resultCode != Activity.RESULT_OK) {
 
             uploadMessage.onReceiveValue(
@@ -1009,6 +998,7 @@ public class MainActivity extends AppCompatActivity {
             );
 
             uploadMessage = null;
+
             cameraUri = null;
 
             return;
@@ -1016,7 +1006,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * الصورة القادمة من الكاميرا
+         * الكاميرا
          */
         if (data == null) {
 
@@ -1032,7 +1022,7 @@ public class MainActivity extends AppCompatActivity {
 
 
             /*
-             * أكثر من ملف
+             * عدة ملفات
              */
             if (data.getClipData() != null) {
 
@@ -1069,14 +1059,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
-        /*
-         * إرسال النتيجة إلى WebView
-         */
         uploadMessage.onReceiveValue(
                 results
         );
 
         uploadMessage = null;
+
         cameraUri = null;
     }
 
@@ -1130,7 +1118,9 @@ public class MainActivity extends AppCompatActivity {
     public void onBackPressed() {
 
         if (webView == null) {
+
             showExitDialog();
+
             return;
         }
 
@@ -1140,7 +1130,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * إذا كانت Splash
+         * Splash
          */
         if (currentUrl != null
                 && currentUrl.equals(SPLASH_URL)) {
@@ -1152,7 +1142,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * إذا كانت Offline
+         * Offline
          */
         if (currentUrl != null
                 && currentUrl.equals(OFFLINE_URL)) {
@@ -1164,8 +1154,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * إذا كان هناك تاريخ سابق
-         * داخل الموقع، ارجع للصفحة السابقة.
+         * صفحة سابقة داخل الموقع
          */
         if (webView.canGoBack()) {
 
@@ -1176,8 +1165,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * لا توجد صفحة سابقة.
-         * نعرض تأكيد الخروج.
+         * لا توجد صفحة سابقة
          */
         showExitDialog();
     }
@@ -1190,7 +1178,9 @@ public class MainActivity extends AppCompatActivity {
 
         new AlertDialog.Builder(this)
                 .setTitle("تأكيد الخروج")
-                .setMessage("هل أنت متأكد من الخروج من التطبيق؟")
+                .setMessage(
+                        "هل أنت متأكد من الخروج من التطبيق؟"
+                )
                 .setPositiveButton(
                         "موافق",
                         (dialog, which) -> {
@@ -1234,20 +1224,24 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
 
         /*
-         * إلغاء مراقبة الإنترنت
+         * إلغاء مراقبة الشبكة
          */
-        if (networkReceiver != null) {
+        if (connectivityManager != null
+                && networkCallback != null
+                && Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.N) {
 
             try {
 
-                unregisterReceiver(
-                        networkReceiver
-                );
+                connectivityManager
+                        .unregisterNetworkCallback(
+                                networkCallback
+                        );
 
             } catch (Exception ignored) {
             }
 
-            networkReceiver = null;
+            networkCallback = null;
         }
 
 
@@ -1270,4 +1264,4 @@ public class MainActivity extends AppCompatActivity {
 
         super.onDestroy();
     }
-            }
+    }
