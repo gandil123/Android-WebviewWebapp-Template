@@ -1,5 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <color name="colorPrimary">#1A237E</color>
     <color name="colorPrimaryDark">#0D1445</color>
     <color name="colorAccent">#FF6F00</color>
+
+    <!-- ألوان التطبيق القديمة المطلوبة من ملفات الواجهة -->
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="teal_700">#018786</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <!-- خلفية شاشة البداية -->
+    <color name="splash_background">#1A237E</color>
+
 </resources>
