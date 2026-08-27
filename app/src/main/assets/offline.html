@@ -1,3 +1,143 @@
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>غير متصل بالإنترنت</title>
+  <style>
+    /* ===== التصميم الأساسي ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #006B50;
+      font-family: 'Arial', 'Tahoma', 'Helvetica', sans-serif;
+      padding: 1.5rem;
+      direction: rtl;
+    }
+
+    .offline-card {
+      max-width: 560px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      border-radius: 48px;
+      padding: 3rem 2.2rem;
+      box-shadow: 0 25px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255, 255, 255, 0.2) inset;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .icon-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.8rem;
+    }
+
+    .icon-wrapper svg {
+      width: 80px;
+      height: 80px;
+      fill: none;
+      stroke: #006B50;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      background: rgba(0, 107, 80, 0.10);
+      padding: 14px;
+      border-radius: 50%;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      font-family: 'Arial', 'Tahoma', sans-serif;
+      font-size: 3rem;
+      font-weight: 700;
+      color: #004d3a;
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.5px;
+      text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.3);
+      line-height: 1.2;
+    }
+
+    .main-message {
+      font-family: 'Arial', 'Tahoma', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #003d2e;
+      margin-bottom: 1.2rem;
+      padding: 0 0.2rem;
+      line-height: 1.5;
+      border-bottom: 2px dashed rgba(0, 107, 80, 0.25);
+      padding-bottom: 0.7rem;
+      display: inline-block;
+    }
+
+    .description {
+      font-family: 'Arial', 'Tahoma', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 400;
+      color: #1b4d3e;
+      margin-bottom: 0;
+      padding: 0.8rem 1.2rem;
+      line-height: 1.8;
+      background: rgba(0, 107, 80, 0.06);
+      border-radius: 60px;
+      display: inline-block;
+      backdrop-filter: blur(2px);
+      border: 1px solid rgba(0, 107, 80, 0.15);
+    }
+
+    /* ===== تحسين للشاشات الصغيرة ===== */
+    @media (max-width: 500px) {
+      .offline-card {
+        padding: 2rem 1.2rem;
+        border-radius: 32px;
+      }
+      h1 {
+        font-size: 2.5rem;
+      }
+      .main-message {
+        font-size: 1.7rem;
+      }
+      .description {
+        font-size: 1.1rem;
+        padding: 0.6rem 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-card">
+
+    <!-- أيقونة Wifi مكسورة (SVG) -->
+    <div class="icon-wrapper">
+      <svg viewBox="0 0 24 24" stroke="currentColor">
+        <path d="M12 18h.01" />
+        <path d="M9.172 15.172a4 4 0 0 1 5.656 0" />
+        <path d="M6.343 12.343a8 8 0 0 1 11.314 0" />
+        <path d="M3.515 9.515c1.7-1.7 3.97-2.7 6.485-2.7s4.785 1 6.485 2.7" />
+        <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2.5" />
+      </svg>
+    </div>
+
+    <h1>🌐 غير متصل</h1>
+
+    <div class="main-message">
+      يرجى الاتصال بالإنترنت
+    </div>
+
+    <p class="description">
+      ⚡ تأكد من بيانات الاتصال أو Wi-Fi
+    </p>
+
+  </div>
+</body>
+  </html>
