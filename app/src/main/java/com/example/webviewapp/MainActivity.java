@@ -855,48 +855,9 @@ public class MainActivity extends AppCompatActivity {
             webView.setWebViewClient(null);
             webView.destroy();
 
-            webView = null;
+                    webView = null;
         }
 
         super.onDestroy();
     }
-    }                startActivityForResult(takePictureIntent, REQUEST_CODE_CAMERA);
             }
-        }
-    }
-
-    private File createImageFile() throws IOException {
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-        String imageFileName = "JPEG_" + timeStamp + "_";
-        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        return File.createTempFile(imageFileName, ".jpg", storageDir);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (uploadMessage == null) return;
-
-        if (requestCode == REQUEST_CODE_FILE && resultCode == RESULT_OK && data != null) {
-            Uri result = data.getData();
-            uploadMessage.onReceiveValue(new Uri[]{result});
-            uploadMessage = null;
-        } else if (requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK) {
-            uploadMessage.onReceiveValue(new Uri[]{cameraUri});
-            uploadMessage = null;
-        } else {
-            uploadMessage.onReceiveValue(null);
-            uploadMessage = null;
-        }
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
-    }
-}
