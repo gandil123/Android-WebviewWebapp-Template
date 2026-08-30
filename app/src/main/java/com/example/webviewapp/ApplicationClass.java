@@ -13,7 +13,6 @@ public class ApplicationClass extends Application {
     public void onCreate() {
         super.onCreate();
 
-        // تهيئة OneSignal
         OneSignal.initWithContext(this, ONESIGNAL_APP_ID);
     }
 }
