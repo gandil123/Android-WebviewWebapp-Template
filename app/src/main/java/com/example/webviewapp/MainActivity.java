@@ -32,6 +32,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
+import com.onesignal.OneSignal;
+
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -48,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE_FILE = 100;
     private static final int REQUEST_PERMISSION_CAMERA = 200;
+    private static final int REQUEST_PERMISSION_NOTIFICATIONS = 300;
 
     /*
      * رابط الموقع
@@ -92,6 +95,11 @@ public class MainActivity extends AppCompatActivity {
      * منع تكرار العودة للموقع
      */
     private boolean returningOnline = false;
+
+    /*
+     * منع تكرار نافذة الإشعارات
+     */
+    private boolean notificationDialogShown = false;
 
     /*
      * مراقبة الشبكة
@@ -155,10 +163,7 @@ public class MainActivity extends AppCompatActivity {
         );
 
         /*
-         * تحميل Splash في WebView مستقل.
-         *
-         * هذا الـWebView ليس WebView الموقع،
-         * لذلك Splash لن تدخل في سجل صفحات الموقع.
+         * تحميل Splash في WebView مستقل
          */
         splashWebView.loadUrl(SPLASH_URL);
     }
@@ -217,6 +222,111 @@ public class MainActivity extends AppCompatActivity {
 
             webView.bringToFront();
         }
+
+        /*
+         * بعد انتهاء Splash:
+         * عرض خيار تفعيل الإشعارات
+         */
+        showNotificationDialogIfNeeded();
+    }
+
+
+    /*
+     * سؤال المستخدم عن تفعيل الإشعارات
+     *
+     * لا يتم تشغيل الإشعارات تلقائيًا.
+     * المستخدم هو من يختار.
+     */
+    private void showNotificationDialogIfNeeded() {
+
+        if (notificationDialogShown) {
+            return;
+        }
+
+        notificationDialogShown = true;
+
+        /*
+         * إذا كان المستخدم فعّل الإشعارات مسبقًا
+         * فلا حاجة لإظهار النافذة مرة أخرى.
+         */
+        if (OneSignal.getNotificationsEnabled()) {
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+
+                .setTitle("تفعيل الإشعارات")
+
+                .setMessage(
+                        "هل تريد تفعيل إشعارات قنديل الزمان للحصول على التنبيهات والتحديثات؟"
+                )
+
+                .setPositiveButton(
+                        "تفعيل",
+                        (dialog, which) -> {
+
+                            requestNotificationPermission();
+
+                        }
+                )
+
+                .setNegativeButton(
+                        "لاحقًا",
+                        null
+                )
+
+                .show();
+    }
+
+
+    /*
+     * طلب إذن الإشعارات
+     */
+    private void requestNotificationPermission() {
+
+        /*
+         * Android 13 وما بعده
+         */
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.TIRAMISU) {
+
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED) {
+
+                ActivityCompat.requestPermissions(
+                        this,
+                        new String[]{
+                                Manifest.permission.POST_NOTIFICATIONS
+                        },
+                        REQUEST_PERMISSION_NOTIFICATIONS
+                );
+
+            } else {
+
+                enableOneSignal();
+            }
+
+        } else {
+
+            /*
+             * Android 7 إلى Android 12
+             *
+             * لا يحتاج POST_NOTIFICATIONS.
+             */
+            enableOneSignal();
+        }
+    }
+
+
+    /*
+     * تفعيل إشعارات OneSignal
+     */
+    private void enableOneSignal() {
+
+        OneSignal.getNotifications()
+                .requestPermission(false, null);
     }
 
 
@@ -1161,7 +1271,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * نتيجة صلاحية الكاميرا
+     * نتائج الصلاحيات
      */
     @Override
     public void onRequestPermissionsResult(
@@ -1177,6 +1287,9 @@ public class MainActivity extends AppCompatActivity {
         );
 
 
+        /*
+         * صلاحية الكاميرا
+         */
         if (requestCode
                 == REQUEST_PERMISSION_CAMERA) {
 
@@ -1195,6 +1308,35 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(
                         this,
                         "لم يتم السماح باستخدام الكاميرا.",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+        }
+
+
+        /*
+         * صلاحية الإشعارات
+         */
+        if (requestCode
+                == REQUEST_PERMISSION_NOTIFICATIONS) {
+
+            if (grantResults.length > 0
+                    && grantResults[0]
+                    == PackageManager.PERMISSION_GRANTED) {
+
+                enableOneSignal();
+
+                Toast.makeText(
+                        this,
+                        "تم تفعيل الإشعارات.",
+                        Toast.LENGTH_SHORT
+                ).show();
+
+            } else {
+
+                Toast.makeText(
+                        this,
+                        "لم يتم تفعيل الإشعارات.",
                         Toast.LENGTH_SHORT
                 ).show();
             }
