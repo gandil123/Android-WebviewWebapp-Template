@@ -162,9 +162,6 @@ public class MainActivity extends AppCompatActivity {
                 new WebViewClient()
         );
 
-        /*
-         * تحميل Splash في WebView مستقل
-         */
         splashWebView.loadUrl(SPLASH_URL);
     }
 
@@ -186,15 +183,11 @@ public class MainActivity extends AppCompatActivity {
 
         splashWebView.bringToFront();
 
-        /*
-         * إخفاء Splash بعد 2.5 ثانية
-         */
         splashWebView.postDelayed(
                 new Runnable() {
 
                     @Override
                     public void run() {
-
                         hideSplash();
                     }
 
@@ -224,8 +217,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         /*
-         * بعد انتهاء Splash:
-         * عرض خيار تفعيل الإشعارات
+         * عرض خيار الإشعارات بعد Splash
          */
         showNotificationDialogIfNeeded();
     }
@@ -245,42 +237,6 @@ public class MainActivity extends AppCompatActivity {
 
         notificationDialogShown = true;
 
-        /*
-         * إذا كان المستخدم فعّل الإشعارات مسبقًا
-         * فلا حاجة لإظهار النافذة مرة أخرى.
-         */
-        private void showNotificationDialogIfNeeded() {
-
-    if (notificationDialogShown) {
-        return;
-    }
-
-    notificationDialogShown = true;
-
-    new AlertDialog.Builder(this)
-
-            .setTitle("تفعيل الإشعارات")
-
-            .setMessage(
-                    "هل تريد تفعيل إشعارات قنديل الزمان للحصول على التنبيهات والتحديثات؟"
-            )
-
-            .setPositiveButton(
-                    "تفعيل",
-                    (dialog, which) -> {
-
-                        requestNotificationPermission();
-
-                    }
-            )
-
-            .setNegativeButton(
-                    "لاحقًا",
-                    null
-            )
-
-            .show();
-        }
         new AlertDialog.Builder(this)
 
                 .setTitle("تفعيل الإشعارات")
@@ -340,8 +296,6 @@ public class MainActivity extends AppCompatActivity {
 
             /*
              * Android 7 إلى Android 12
-             *
-             * لا يحتاج POST_NOTIFICATIONS.
              */
             enableOneSignal();
         }
@@ -452,9 +406,6 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(
                 new WebViewClient() {
 
-                    /*
-                     * Android الحديث
-                     */
                     @Override
                     public boolean shouldOverrideUrlLoading(
                             WebView view,
@@ -473,9 +424,6 @@ public class MainActivity extends AppCompatActivity {
                     }
 
 
-                    /*
-                     * Android القديم
-                     */
                     @Override
                     public boolean shouldOverrideUrlLoading(
                             WebView view,
@@ -580,9 +528,6 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebChromeClient(
                 new WebChromeClient() {
 
-                    /*
-                     * اختيار الملفات والكاميرا
-                     */
                     @Override
                     public boolean onShowFileChooser(
                             WebView webView,
