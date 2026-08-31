@@ -1,6 +1,5 @@
 package com.qandilalzman.digital;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -32,6 +31,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
+import com.onesignal.Continue;
 import com.onesignal.OneSignal;
 
 import java.io.File;
@@ -42,402 +42,478 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    private WebView webView;
-    private WebView splashWebView;
+private WebView webView;
+private WebView splashWebView;
 
-    private ValueCallback<Uri[]> uploadMessage;
-    private Uri cameraUri;
+private ValueCallback<Uri[]> uploadMessage;
+private Uri cameraUri;
 
-    private static final int REQUEST_CODE_FILE = 100;
-    private static final int REQUEST_PERMISSION_CAMERA = 200;
-    private static final int REQUEST_PERMISSION_NOTIFICATIONS = 300;
+private static final int REQUEST_CODE_FILE = 100;
+private static final int REQUEST_PERMISSION_CAMERA = 200;
 
-    private static final String WEBSITE_URL =
-            "https://qandilalzman-from.cc.cd/";
+private static final String WEBSITE_URL =
+        "https://qandilalzman-from.cc.cd/";
 
-    private static final String MAIN_DOMAIN =
-            "qandilalzman-from.cc.cd";
+private static final String MAIN_DOMAIN =
+        "qandilalzman-from.cc.cd";
 
-    private static final String SPLASH_URL =
-            "file:///android_asset/splash.html";
+private static final String SPLASH_URL =
+        "file:///android_asset/splash.html";
 
-    private static final String OFFLINE_URL =
-            "file:///android_asset/offline.html";
+private static final String OFFLINE_URL =
+        "file:///android_asset/offline.html";
 
-    private static final long SPLASH_DURATION = 2500;
+private static final long SPLASH_DURATION = 2500;
 
-    private boolean showingSplash = false;
-    private boolean showingOfflinePage = false;
-    private boolean returningOnline = false;
-    private boolean notificationDialogShown = false;
+private boolean showingSplash = false;
+private boolean showingOfflinePage = false;
+private boolean returningOnline = false;
+private boolean notificationDialogShown = false;
 
-    private ConnectivityManager connectivityManager;
-    private ConnectivityManager.NetworkCallback networkCallback;
+private ConnectivityManager connectivityManager;
+private ConnectivityManager.NetworkCallback networkCallback;
 
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_main);
+    setContentView(R.layout.activity_main);
 
-        webView = findViewById(R.id.webView);
-        splashWebView = findViewById(R.id.splashWebView);
+    webView = findViewById(R.id.webView);
+    splashWebView = findViewById(R.id.splashWebView);
 
-        setupWebView();
-        setupSplash();
+    setupWebView();
+    setupSplash();
 
-        if (isNetworkAvailable()) {
-            loadWebsite();
-        } else {
-            showOfflinePage();
-        }
-
-        showSplash();
-
-        registerNetworkCallback();
+    if (isNetworkAvailable()) {
+        loadWebsite();
+    } else {
+        showOfflinePage();
     }
 
+    showSplash();
 
-    /*
-     * إعداد شاشة البداية
-     */
-    private void setupSplash() {
+    registerNetworkCallback();
+}
 
-        if (splashWebView == null) {
-            return;
-        }
 
-        WebSettings settings =
-                splashWebView.getSettings();
+private void setupSplash() {
 
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setAllowFileAccess(true);
-        settings.setAllowContentAccess(true);
-
-        splashWebView.setWebViewClient(
-                new WebViewClient()
-        );
-
-        splashWebView.loadUrl(SPLASH_URL);
+    if (splashWebView == null) {
+        return;
     }
 
+    WebSettings settings =
+            splashWebView.getSettings();
+
+    settings.setJavaScriptEnabled(true);
+    settings.setDomStorageEnabled(true);
+    settings.setAllowFileAccess(true);
+    settings.setAllowContentAccess(true);
+
+    splashWebView.setWebViewClient(
+            new WebViewClient()
+    );
+
+    splashWebView.loadUrl(SPLASH_URL);
+}
+
+
+private void showSplash() {
+
+    showingSplash = true;
+
+    if (splashWebView == null) {
+        return;
+    }
+
+    splashWebView.setVisibility(View.VISIBLE);
+    splashWebView.bringToFront();
+
+    splashWebView.postDelayed(
+            new Runnable() {
+                @Override
+                public void run() {
+                    hideSplash();
+                }
+            },
+            SPLASH_DURATION
+    );
+}
+
+
+private void hideSplash() {
+
+    showingSplash = false;
+
+    if (splashWebView != null) {
+        splashWebView.setVisibility(View.GONE);
+    }
+
+    if (webView != null) {
+        webView.bringToFront();
+    }
+
+    showNotificationDialogIfNeeded();
+}
+
+
+/*
+ * نافذة تفعيل الإشعارات
+ */
+private void showNotificationDialogIfNeeded() {
+
+    if (notificationDialogShown) {
+        return;
+    }
 
     /*
-     * عرض شاشة البداية
+     * لا تظهر النافذة إذا كان الإذن ممنوحًا بالفعل.
      */
-    private void showSplash() {
-
-        showingSplash = true;
-
-        if (splashWebView == null) {
+    try {
+        if (OneSignal.getNotifications().getPermission()) {
+            notificationDialogShown = true;
             return;
         }
+    } catch (Exception ignored) {
+    }
 
-        splashWebView.setVisibility(View.VISIBLE);
-        splashWebView.bringToFront();
+    notificationDialogShown = true;
 
-        splashWebView.postDelayed(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        hideSplash();
+    new AlertDialog.Builder(this)
+            .setTitle("تفعيل الإشعارات")
+            .setMessage(
+                    "هل تريد تفعيل إشعارات قنديل الزمان للحصول على التنبيهات والتحديثات؟"
+            )
+            .setPositiveButton(
+                    "تفعيل",
+                    (dialog, which) -> {
+                        requestNotificationPermission();
                     }
-                },
-                SPLASH_DURATION
-        );
-    }
+            )
+            .setNegativeButton(
+                    "لاحقًا",
+                    null
+            )
+            .show();
+}
 
 
-    /*
-     * إخفاء شاشة البداية
-     */
-    private void hideSplash() {
+/*
+ * طلب إذن الإشعارات عن طريق OneSignal
+ *
+ * Continue.none() هو الأسلوب الصحيح
+ * عند استخدام OneSignal SDK 5.x في Java.
+ */
+private void requestNotificationPermission() {
 
-        showingSplash = false;
-
-        if (splashWebView != null) {
-            splashWebView.setVisibility(View.GONE);
-        }
-
-        if (webView != null) {
-            webView.bringToFront();
-        }
-
-        showNotificationDialogIfNeeded();
-    }
-
-
-    /*
-     * نافذة تفعيل الإشعارات
-     */
-    private void showNotificationDialogIfNeeded() {
-
-        if (notificationDialogShown) {
-            return;
-        }
-
-        notificationDialogShown = true;
-
-        new AlertDialog.Builder(this)
-
-                .setTitle("تفعيل الإشعارات")
-
-                .setMessage(
-                        "هل تريد تفعيل إشعارات قنديل الزمان للحصول على التنبيهات والتحديثات؟"
-                )
-
-                .setPositiveButton(
-                        "تفعيل",
-                        (dialog, which) -> {
-
-                            requestNotificationPermission();
-
-                        }
-                )
-
-                .setNegativeButton(
-                        "لاحقًا",
-                        null
-                )
-
-                .show();
-    }
-
-
-    /*
-     * طلب الإشعارات من OneSignal
-     *
-     * لا نستخدم هنا:
-     * getNotificationsEnabled()
-     *
-     * ولا نطلب POST_NOTIFICATIONS يدويًا
-     * حتى لا يحدث طلب الإذن مرتين.
-     */
-    private void requestNotificationPermission() {
-
-        try {
-
-            OneSignal.getNotifications()
-                    .requestPermission(
-                            false,
-                            null
-                    );
-
-        } catch (Exception e) {
-
-            Toast.makeText(
-                    this,
-                    "تعذر فتح طلب الإشعارات.",
-                    Toast.LENGTH_LONG
-            ).show();
-        }
-    }
-
-
-    /*
-     * تفعيل OneSignal
-     */
-    private void enableOneSignal() {
-
-        try {
-
-            OneSignal.getNotifications()
-                    .requestPermission(
-                            false,
-                            null
-                    );
-
-        } catch (Exception e) {
-
-            Toast.makeText(
-                    this,
-                    "تعذر تفعيل الإشعارات.",
-                    Toast.LENGTH_LONG
-            ).show();
-        }
-    }
-
-
-    /*
-     * إعداد WebView
-     */
-    private void setupWebView() {
-
-        WebSettings webSettings =
-                webView.getSettings();
-
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
-
-        webSettings.setAllowFileAccess(true);
-        webSettings.setAllowContentAccess(true);
-
-        webSettings.setDatabaseEnabled(true);
-
-        webSettings.setLoadWithOverviewMode(true);
-        webSettings.setUseWideViewPort(true);
-
-        webSettings.setSupportZoom(true);
-        webSettings.setBuiltInZoomControls(true);
-        webSettings.setDisplayZoomControls(false);
-
-        webSettings.setCacheMode(
-                WebSettings.LOAD_DEFAULT
-        );
+    try {
 
         if (Build.VERSION.SDK_INT >=
-                Build.VERSION_CODES.LOLLIPOP) {
+                Build.VERSION_CODES.TIRAMISU) {
 
-            webSettings.setMixedContentMode(
-                    WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            );
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    "android.permission.POST_NOTIFICATIONS"
+            ) != PackageManager.PERMISSION_GRANTED) {
+
+                /*
+                 * OneSignal هو المسؤول عن فتح
+                 * نافذة إذن الإشعارات.
+                 */
+                OneSignal.getNotifications()
+                        .requestPermission(
+                                false,
+                                Continue.none()
+                        );
+
+                return;
+            }
         }
 
-        webSettings.setSaveFormData(true);
-        webSettings.setGeolocationEnabled(true);
-
-
         /*
-         * Cookies
+         * للأجهزة التي لا تحتاج إذن Android 13.
          */
-        CookieManager cookieManager =
-                CookieManager.getInstance();
+        OneSignal.getNotifications()
+                .requestPermission(
+                        false,
+                        Continue.none()
+                );
 
-        cookieManager.setAcceptCookie(true);
+    } catch (Exception e) {
 
-        if (Build.VERSION.SDK_INT >=
-                Build.VERSION_CODES.LOLLIPOP) {
-
-            cookieManager.setAcceptThirdPartyCookies(
-                    webView,
-                    true
-            );
-        }
-
-
-        /*
-         * WebViewClient
-         */
-        webView.setWebViewClient(
-                new WebViewClient() {
-
-                    @Override
-                    public boolean shouldOverrideUrlLoading(
-                            WebView view,
-                            WebResourceRequest request
-                    ) {
-
-                        if (Build.VERSION.SDK_INT >=
-                                Build.VERSION_CODES.LOLLIPOP) {
-
-                            return handleUrl(
-                                    request.getUrl()
-                            );
-                        }
-
-                        return false;
-                    }
+        Toast.makeText(
+                this,
+                "تعذر فتح طلب الإشعارات.",
+                Toast.LENGTH_LONG
+        ).show();
+    }
+}
 
 
-                    @Override
-                    public boolean shouldOverrideUrlLoading(
-                            WebView view,
-                            String url
-                    ) {
+/*
+ * إعداد WebView
+ */
+private void setupWebView() {
+
+    WebSettings webSettings =
+            webView.getSettings();
+
+    webSettings.setJavaScriptEnabled(true);
+    webSettings.setDomStorageEnabled(true);
+
+    webSettings.setAllowFileAccess(true);
+    webSettings.setAllowContentAccess(true);
+
+    webSettings.setDatabaseEnabled(true);
+
+    webSettings.setLoadWithOverviewMode(true);
+    webSettings.setUseWideViewPort(true);
+
+    webSettings.setSupportZoom(true);
+    webSettings.setBuiltInZoomControls(true);
+    webSettings.setDisplayZoomControls(false);
+
+    webSettings.setCacheMode(
+            WebSettings.LOAD_DEFAULT
+    );
+
+    if (Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.LOLLIPOP) {
+
+        webSettings.setMixedContentMode(
+                WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        );
+    }
+
+    webSettings.setSaveFormData(true);
+    webSettings.setGeolocationEnabled(true);
+
+    CookieManager cookieManager =
+            CookieManager.getInstance();
+
+    cookieManager.setAcceptCookie(true);
+
+    if (Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.LOLLIPOP) {
+
+        cookieManager.setAcceptThirdPartyCookies(
+                webView,
+                true
+        );
+    }
+
+
+    webView.setWebViewClient(
+            new WebViewClient() {
+
+                @Override
+                public boolean shouldOverrideUrlLoading(
+                        WebView view,
+                        WebResourceRequest request
+                ) {
+
+                    if (Build.VERSION.SDK_INT >=
+                            Build.VERSION_CODES.LOLLIPOP) {
 
                         return handleUrl(
-                                Uri.parse(url)
+                                request.getUrl()
                         );
                     }
 
+                    return false;
+                }
 
-                    @Override
-                    public void onPageFinished(
-                            WebView view,
-                            String url
-                    ) {
 
-                        super.onPageFinished(
-                                view,
-                                url
-                        );
+                @Override
+                public boolean shouldOverrideUrlLoading(
+                        WebView view,
+                        String url
+                ) {
 
-                        if (url != null
-                                && !url.equals(
-                                OFFLINE_URL
-                        )) {
+                    return handleUrl(
+                            Uri.parse(url)
+                    );
+                }
 
-                            showingOfflinePage = false;
 
-                            CookieManager
-                                    .getInstance()
-                                    .flush();
+                @Override
+                public void onPageFinished(
+                        WebView view,
+                        String url
+                ) {
+
+                    super.onPageFinished(
+                            view,
+                            url
+                    );
+
+                    if (url != null
+                            && !url.equals(
+                            OFFLINE_URL
+                    )) {
+
+                        showingOfflinePage = false;
+
+                        CookieManager
+                                .getInstance()
+                                .flush();
+                    }
+                }
+
+
+                @Override
+                public void onReceivedError(
+                        WebView view,
+                        WebResourceRequest request,
+                        WebResourceError error
+                ) {
+
+                    super.onReceivedError(
+                            view,
+                            request,
+                            error
+                    );
+
+                    if (Build.VERSION.SDK_INT >=
+                            Build.VERSION_CODES.M) {
+
+                        if (request.isForMainFrame()) {
+                            showOfflinePage();
                         }
+
+                    } else {
+
+                        showOfflinePage();
+                    }
+                }
+
+
+                @Override
+                public void onReceivedError(
+                        WebView view,
+                        int errorCode,
+                        String description,
+                        String failingUrl
+                ) {
+
+                    super.onReceivedError(
+                            view,
+                            errorCode,
+                            description,
+                            failingUrl
+                    );
+
+                    if (!showingSplash) {
+                        showOfflinePage();
+                    }
+                }
+            }
+    );
+
+
+    webView.setWebChromeClient(
+            new WebChromeClient() {
+
+                @Override
+                public boolean onShowFileChooser(
+                        WebView webView,
+                        ValueCallback<Uri[]> filePathCallback,
+                        FileChooserParams fileChooserParams
+                ) {
+
+                    if (uploadMessage != null) {
+
+                        uploadMessage.onReceiveValue(null);
+                        uploadMessage = null;
                     }
 
+                    uploadMessage = filePathCallback;
 
-                    @Override
-                    public void onReceivedError(
-                            WebView view,
-                            WebResourceRequest request,
-                            WebResourceError error
-                    ) {
+                    boolean canCapture =
+                            fileChooserParams
+                                    .isCaptureEnabled();
 
-                        super.onReceivedError(
-                                view,
-                                request,
-                                error
-                        );
 
-                        if (Build.VERSION.SDK_INT >=
-                                Build.VERSION_CODES.M) {
+                    Intent fileIntent =
+                            new Intent(
+                                    Intent.ACTION_GET_CONTENT
+                            );
 
-                            if (request.isForMainFrame()) {
-                                showOfflinePage();
+                    fileIntent.addCategory(
+                            Intent.CATEGORY_OPENABLE
+                    );
+
+                    fileIntent.setType("*/*");
+
+                    fileIntent.putExtra(
+                            Intent.EXTRA_ALLOW_MULTIPLE,
+                            true
+                    );
+
+
+                    if (canCapture) {
+
+                        if (checkCameraPermission()) {
+
+                            Intent cameraIntent =
+                                    createCameraIntent();
+
+                            if (cameraIntent != null) {
+
+                                Intent chooser =
+                                        Intent.createChooser(
+                                                fileIntent,
+                                                "اختيار ملف أو صورة"
+                                        );
+
+                                chooser.putExtra(
+                                        Intent.EXTRA_INITIAL_INTENTS,
+                                        new Intent[]{
+                                                cameraIntent
+                                        }
+                                );
+
+                                try {
+
+                                    startActivityForResult(
+                                            chooser,
+                                            REQUEST_CODE_FILE
+                                    );
+
+                                    return true;
+
+                                } catch (
+                                        ActivityNotFoundException e
+                                ) {
+                                }
                             }
 
                         } else {
-                            showOfflinePage();
+
+                            ActivityCompat.requestPermissions(
+                                    MainActivity.this,
+                                    new String[]{
+                                            "android.permission.CAMERA"
+                                    },
+                                    REQUEST_PERMISSION_CAMERA
+                            );
+
+                            return true;
                         }
                     }
 
 
-                    @Override
-                    public void onReceivedError(
-                            WebView view,
-                            int errorCode,
-                            String description,
-                            String failingUrl
-                    ) {
+                    try {
 
-                        super.onReceivedError(
-                                view,
-                                errorCode,
-                                description,
-                                failingUrl
+                        startActivityForResult(
+                                fileIntent,
+                                REQUEST_CODE_FILE
                         );
 
-                        if (!showingSplash) {
-                            showOfflinePage();
-                        }
-                    }
-                }
-        );
-
-
-        /*
-         * WebChromeClient
-         */
-        webView.setWebChromeClient(
-                new WebChromeClient() {
-
-                    @Override
-                    public boolean onShowFileChooser(
-                            WebView webView,
-                            ValueCallback<Uri[]> filePathCallback,
-                            FileChooserParams fileChooserParams
+                    } catch (
+                            ActivityNotFoundException e
                     ) {
 
                         if (uploadMessage != null) {
@@ -446,437 +522,240 @@ public class MainActivity extends AppCompatActivity {
                             uploadMessage = null;
                         }
 
-                        uploadMessage = filePathCallback;
-
-                        boolean canCapture =
-                                fileChooserParams
-                                        .isCaptureEnabled();
-
-
-                        /*
-                         * منتقي الملفات
-                         */
-                        Intent fileIntent =
-                                new Intent(
-                                        Intent.ACTION_GET_CONTENT
-                                );
-
-                        fileIntent.addCategory(
-                                Intent.CATEGORY_OPENABLE
-                        );
-
-                        fileIntent.setType("*/*");
-
-                        fileIntent.putExtra(
-                                Intent.EXTRA_ALLOW_MULTIPLE,
-                                true
-                        );
-
-
-                        /*
-                         * الكاميرا
-                         */
-                        if (canCapture) {
-
-                            if (checkCameraPermission()) {
-
-                                Intent cameraIntent =
-                                        createCameraIntent();
-
-                                if (cameraIntent != null) {
-
-                                    Intent chooser =
-                                            Intent.createChooser(
-                                                    fileIntent,
-                                                    "اختيار ملف أو صورة"
-                                            );
-
-                                    chooser.putExtra(
-                                            Intent.EXTRA_INITIAL_INTENTS,
-                                            new Intent[]{
-                                                    cameraIntent
-                                            }
-                                    );
-
-                                    try {
-
-                                        startActivityForResult(
-                                                chooser,
-                                                REQUEST_CODE_FILE
-                                        );
-
-                                        return true;
-
-                                    } catch (
-                                            ActivityNotFoundException e
-                                    ) {
-                                    }
-                                }
-
-                            } else {
-
-                                ActivityCompat.requestPermissions(
-                                        MainActivity.this,
-                                        new String[]{
-                                                Manifest.permission.CAMERA
-                                        },
-                                        REQUEST_PERMISSION_CAMERA
-                                );
-
-                                return true;
-                            }
-                        }
-
-
-                        /*
-                         * فتح منتقي الملفات
-                         */
-                        try {
-
-                            startActivityForResult(
-                                    fileIntent,
-                                    REQUEST_CODE_FILE
-                            );
-
-                        } catch (
-                                ActivityNotFoundException e
-                        ) {
-
-                            if (uploadMessage != null) {
-
-                                uploadMessage.onReceiveValue(null);
-                                uploadMessage = null;
-                            }
-
-                            Toast.makeText(
-                                    MainActivity.this,
-                                    "لا يوجد تطبيق لاختيار الملفات.",
-                                    Toast.LENGTH_LONG
-                            ).show();
-                        }
-
-                        return true;
+                        Toast.makeText(
+                                MainActivity.this,
+                                "لا يوجد تطبيق لاختيار الملفات.",
+                                Toast.LENGTH_LONG
+                        ).show();
                     }
+
+                    return true;
                 }
-        );
+            }
+    );
+}
+
+
+private boolean isNetworkAvailable() {
+
+    ConnectivityManager cm =
+            (ConnectivityManager)
+                    getSystemService(
+                            Context.CONNECTIVITY_SERVICE
+                    );
+
+    if (cm == null) {
+        return false;
     }
 
+    if (Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.M) {
 
-    /*
-     * فحص الإنترنت
-     */
-    private boolean isNetworkAvailable() {
+        Network network =
+                cm.getActiveNetwork();
 
-        ConnectivityManager cm =
-                (ConnectivityManager)
-                        getSystemService(
-                                Context.CONNECTIVITY_SERVICE
-                        );
-
-        if (cm == null) {
+        if (network == null) {
             return false;
         }
 
-        if (Build.VERSION.SDK_INT >=
-                Build.VERSION_CODES.M) {
+        NetworkCapabilities capabilities =
+                cm.getNetworkCapabilities(
+                        network
+                );
 
-            Network network =
-                    cm.getActiveNetwork();
-
-            if (network == null) {
-                return false;
-            }
-
-            NetworkCapabilities capabilities =
-                    cm.getNetworkCapabilities(
-                            network
-                    );
-
-            if (capabilities == null) {
-                return false;
-            }
-
-            return capabilities.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_INTERNET
-            );
+        if (capabilities == null) {
+            return false;
         }
 
-        android.net.NetworkInfo networkInfo =
-                cm.getActiveNetworkInfo();
-
-        return networkInfo != null
-                && networkInfo.isConnected();
+        return capabilities.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET
+        );
     }
 
+    android.net.NetworkInfo networkInfo =
+            cm.getActiveNetworkInfo();
 
-    /*
-     * تحميل الموقع
-     */
-    private void loadWebsite() {
+    return networkInfo != null
+            && networkInfo.isConnected();
+}
 
-        if (webView == null) {
-            return;
-        }
+
+private void loadWebsite() {
+
+    if (webView == null) {
+        return;
+    }
+
+    showingOfflinePage = false;
+
+    webView.loadUrl(WEBSITE_URL);
+}
+
+
+private void showOfflinePage() {
+
+    if (webView == null) {
+        return;
+    }
+
+    if (showingOfflinePage) {
+        return;
+    }
+
+    showingOfflinePage = true;
+
+    webView.loadUrl(OFFLINE_URL);
+}
+
+
+private void registerNetworkCallback() {
+
+    if (Build.VERSION.SDK_INT <
+            Build.VERSION_CODES.N) {
+
+        return;
+    }
+
+    connectivityManager =
+            (ConnectivityManager)
+                    getSystemService(
+                            Context.CONNECTIVITY_SERVICE
+                    );
+
+    if (connectivityManager == null) {
+        return;
+    }
+
+    networkCallback =
+            new ConnectivityManager.NetworkCallback() {
+
+                @Override
+                public void onAvailable(
+                        Network network
+                ) {
+
+                    runOnUiThread(
+                            new Runnable() {
+
+                                @Override
+                                public void run() {
+                                    returnToWebsite();
+                                }
+                            }
+                    );
+                }
+
+
+                @Override
+                public void onLost(
+                        Network network
+                ) {
+
+                    runOnUiThread(
+                            new Runnable() {
+
+                                @Override
+                                public void run() {
+
+                                    if (!showingSplash) {
+                                        showOfflinePage();
+                                    }
+                                }
+                            }
+                    );
+                }
+            };
+
+
+    try {
+
+        connectivityManager
+                .registerDefaultNetworkCallback(
+                        networkCallback
+                );
+
+    } catch (Exception ignored) {
+    }
+}
+
+
+private void returnToWebsite() {
+
+    if (webView == null) {
+        return;
+    }
+
+    if (showingSplash) {
+        return;
+    }
+
+    if (returningOnline) {
+        return;
+    }
+
+    String currentUrl =
+            webView.getUrl();
+
+    if (currentUrl != null
+            && currentUrl.equals(
+            OFFLINE_URL
+    )) {
+
+        returningOnline = true;
 
         showingOfflinePage = false;
 
-        webView.loadUrl(
-                WEBSITE_URL
-        );
-    }
+        webView.loadUrl(WEBSITE_URL);
 
-
-    /*
-     * صفحة عدم الاتصال
-     */
-    private void showOfflinePage() {
-
-        if (webView == null) {
-            return;
-        }
-
-        if (showingOfflinePage) {
-            return;
-        }
-
-        showingOfflinePage = true;
-
-        webView.loadUrl(
-                OFFLINE_URL
-        );
-    }
-
-
-    /*
-     * مراقبة الشبكة
-     */
-    private void registerNetworkCallback() {
-
-        if (Build.VERSION.SDK_INT <
-                Build.VERSION_CODES.N) {
-
-            return;
-        }
-
-        connectivityManager =
-                (ConnectivityManager)
-                        getSystemService(
-                                Context.CONNECTIVITY_SERVICE
-                        );
-
-        if (connectivityManager == null) {
-            return;
-        }
-
-        networkCallback =
-                new ConnectivityManager.NetworkCallback() {
+        webView.postDelayed(
+                new Runnable() {
 
                     @Override
-                    public void onAvailable(
-                            Network network
-                    ) {
-
-                        runOnUiThread(
-                                new Runnable() {
-
-                                    @Override
-                                    public void run() {
-                                        returnToWebsite();
-                                    }
-                                }
-                        );
+                    public void run() {
+                        returningOnline = false;
                     }
 
-
-                    @Override
-                    public void onLost(
-                            Network network
-                    ) {
-
-                        runOnUiThread(
-                                new Runnable() {
-
-                                    @Override
-                                    public void run() {
-
-                                        if (!showingSplash) {
-                                            showOfflinePage();
-                                        }
-                                    }
-                                }
-                        );
-                    }
-                };
+                },
+                1500
+        );
+    }
+}
 
 
-        try {
+private boolean handleUrl(Uri uri) {
 
-            connectivityManager
-                    .registerDefaultNetworkCallback(
-                            networkCallback
-                    );
+    if (uri == null) {
+        return true;
+    }
 
-        } catch (Exception ignored) {
-        }
+    String scheme =
+            uri.getScheme();
+
+    if (scheme == null) {
+        return false;
     }
 
 
-    /*
-     * العودة للموقع عند رجوع الإنترنت
-     */
-    private void returnToWebsite() {
+    if (scheme.equalsIgnoreCase("http")
+            || scheme.equalsIgnoreCase("https")) {
 
-        if (webView == null) {
-            return;
-        }
+        String host =
+                uri.getHost();
 
-        if (showingSplash) {
-            return;
-        }
-
-        if (returningOnline) {
-            return;
-        }
-
-        String currentUrl =
-                webView.getUrl();
-
-        if (currentUrl != null
-                && currentUrl.equals(
-                OFFLINE_URL
+        if (host != null
+                && (
+                host.equalsIgnoreCase(
+                        MAIN_DOMAIN
+                )
+                        || host.endsWith(
+                        "." + MAIN_DOMAIN
+                )
         )) {
 
-            returningOnline = true;
-
-            showingOfflinePage = false;
-
-            webView.loadUrl(
-                    WEBSITE_URL
-            );
-
-            webView.postDelayed(
-                    new Runnable() {
-
-                        @Override
-                        public void run() {
-                            returningOnline = false;
-                        }
-
-                    },
-                    1500
-            );
-        }
-    }
-
-
-    /*
-     * معالجة الروابط
-     */
-    private boolean handleUrl(Uri uri) {
-
-        if (uri == null) {
-            return true;
-        }
-
-        String scheme =
-                uri.getScheme();
-
-        if (scheme == null) {
             return false;
         }
 
 
-        /*
-         * HTTP / HTTPS
-         */
-        if (scheme.equalsIgnoreCase("http")
-                || scheme.equalsIgnoreCase("https")) {
-
-            String host =
-                    uri.getHost();
-
-            /*
-             * موقع قنديل الزمان
-             * يبقى داخل التطبيق
-             */
-            if (host != null
-                    && (
-                    host.equalsIgnoreCase(
-                            MAIN_DOMAIN
-                    )
-                            || host.endsWith(
-                            "." + MAIN_DOMAIN
-                    )
-            )) {
-
-                return false;
-            }
-
-
-            /*
-             * المواقع الخارجية
-             */
-            try {
-
-                Intent intent =
-                        new Intent(
-                                Intent.ACTION_VIEW,
-                                uri
-                        );
-
-                startActivity(intent);
-
-            } catch (
-                    ActivityNotFoundException e
-            ) {
-
-                Toast.makeText(
-                        MainActivity.this,
-                        "لا يمكن فتح هذا الرابط.",
-                        Toast.LENGTH_SHORT
-                ).show();
-            }
-
-            return true;
-        }
-
-
-        /*
-         * الهاتف والبريد والرسائل والموقع
-         */
-        if (scheme.equalsIgnoreCase("tel")
-                || scheme.equalsIgnoreCase("mailto")
-                || scheme.equalsIgnoreCase("sms")
-                || scheme.equalsIgnoreCase("geo")) {
-
-            try {
-
-                Intent intent =
-                        new Intent(
-                                Intent.ACTION_VIEW,
-                                uri
-                        );
-
-                startActivity(intent);
-
-            } catch (
-                    ActivityNotFoundException e
-            ) {
-
-                Toast.makeText(
-                        MainActivity.this,
-                        "لا يوجد تطبيق مناسب لفتح هذا الرابط.",
-                        Toast.LENGTH_SHORT
-                ).show();
-            }
-
-            return true;
-        }
-
-
-        /*
-         * أي Scheme آخر
-         */
         try {
 
             Intent intent =
@@ -888,428 +767,402 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
 
         } catch (
-                ActivityNotFoundException ignored
+                ActivityNotFoundException e
         ) {
+
+            Toast.makeText(
+                    MainActivity.this,
+                    "لا يمكن فتح هذا الرابط.",
+                    Toast.LENGTH_SHORT
+            ).show();
         }
 
         return true;
     }
 
 
-    /*
-     * إنشاء Intent الكاميرا
-     */
-    private Intent createCameraIntent() {
-
-        Intent intent =
-                new Intent(
-                        MediaStore.ACTION_IMAGE_CAPTURE
-                );
-
-        if (intent.resolveActivity(
-                getPackageManager()
-        ) == null) {
-
-            return null;
-        }
+    if (scheme.equalsIgnoreCase("tel")
+            || scheme.equalsIgnoreCase("mailto")
+            || scheme.equalsIgnoreCase("sms")
+            || scheme.equalsIgnoreCase("geo")) {
 
         try {
 
-            File photoFile =
-                    createImageFile();
-
-            if (photoFile == null) {
-                return null;
-            }
-
-            cameraUri =
-                    FileProvider.getUriForFile(
-                            this,
-                            getPackageName()
-                                    + ".fileprovider",
-                            photoFile
+            Intent intent =
+                    new Intent(
+                            Intent.ACTION_VIEW,
+                            uri
                     );
 
-            intent.putExtra(
-                    MediaStore.EXTRA_OUTPUT,
-                    cameraUri
+            startActivity(intent);
+
+        } catch (
+                ActivityNotFoundException e
+        ) {
+
+            Toast.makeText(
+                    MainActivity.this,
+                    "لا يوجد تطبيق مناسب لفتح هذا الرابط.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+
+        return true;
+    }
+
+
+    try {
+
+        Intent intent =
+                new Intent(
+                        Intent.ACTION_VIEW,
+                        uri
+                );
+
+        startActivity(intent);
+
+    } catch (
+            ActivityNotFoundException ignored
+    ) {
+    }
+
+    return true;
+}
+
+
+private Intent createCameraIntent() {
+
+    Intent intent =
+            new Intent(
+                    MediaStore.ACTION_IMAGE_CAPTURE
             );
 
-            intent.addFlags(
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                            | Intent.FLAG_GRANT_READ_URI_PERMISSION
+    if (intent.resolveActivity(
+            getPackageManager()
+    ) == null) {
+
+        return null;
+    }
+
+    try {
+
+        File photoFile =
+                createImageFile();
+
+        if (photoFile == null) {
+            return null;
+        }
+
+        cameraUri =
+                FileProvider.getUriForFile(
+                        this,
+                        getPackageName()
+                                + ".fileprovider",
+                        photoFile
+                );
+
+        intent.putExtra(
+                MediaStore.EXTRA_OUTPUT,
+                cameraUri
+        );
+
+        intent.addFlags(
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        | Intent.FLAG_GRANT_READ_URI_PERMISSION
+        );
+
+        return intent;
+
+    } catch (Exception e) {
+
+        Toast.makeText(
+                this,
+                "تعذر تجهيز الكاميرا.",
+                Toast.LENGTH_SHORT
+        ).show();
+
+        return null;
+    }
+}
+
+
+private File createImageFile()
+        throws IOException {
+
+    String timeStamp =
+            new SimpleDateFormat(
+                    "yyyyMMdd_HHmmss",
+                    Locale.getDefault()
+            ).format(new Date());
+
+    String imageFileName =
+            "Qandil_" + timeStamp + "_";
+
+    File storageDir =
+            getExternalFilesDir(
+                    Environment.DIRECTORY_PICTURES
             );
 
-            return intent;
+    return File.createTempFile(
+            imageFileName,
+            ".jpg",
+            storageDir
+    );
+}
 
-        } catch (Exception e) {
+
+private boolean checkCameraPermission() {
+
+    if (Build.VERSION.SDK_INT <
+            Build.VERSION_CODES.M) {
+
+        return true;
+    }
+
+    return ContextCompat.checkSelfPermission(
+            this,
+            "android.permission.CAMERA"
+    ) == PackageManager.PERMISSION_GRANTED;
+}
+
+
+@Override
+protected void onActivityResult(
+        int requestCode,
+        int resultCode,
+        @Nullable Intent data
+) {
+
+    super.onActivityResult(
+            requestCode,
+            resultCode,
+            data
+    );
+
+    if (requestCode != REQUEST_CODE_FILE) {
+        return;
+    }
+
+    if (uploadMessage == null) {
+        return;
+    }
+
+    Uri[] results = null;
+
+
+    if (resultCode != Activity.RESULT_OK) {
+
+        uploadMessage.onReceiveValue(null);
+
+        uploadMessage = null;
+        cameraUri = null;
+
+        return;
+    }
+
+
+    if (data == null) {
+
+        if (cameraUri != null) {
+
+            results =
+                    new Uri[]{
+                            cameraUri
+                    };
+        }
+
+    } else {
+
+        if (data.getClipData() != null) {
+
+            int count =
+                    data.getClipData()
+                            .getItemCount();
+
+            results =
+                    new Uri[count];
+
+            for (int i = 0; i < count; i++) {
+
+                results[i] =
+                        data.getClipData()
+                                .getItemAt(i)
+                                .getUri();
+            }
+
+        } else if (data.getData() != null) {
+
+            results =
+                    new Uri[]{
+                            data.getData()
+                    };
+        }
+    }
+
+    uploadMessage.onReceiveValue(results);
+
+    uploadMessage = null;
+    cameraUri = null;
+}
+
+
+@Override
+public void onRequestPermissionsResult(
+        int requestCode,
+        String[] permissions,
+        int[] grantResults
+) {
+
+    super.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults
+    );
+
+    if (requestCode ==
+            REQUEST_PERMISSION_CAMERA) {
+
+        if (grantResults.length > 0
+                && grantResults[0] ==
+                PackageManager.PERMISSION_GRANTED) {
 
             Toast.makeText(
                     this,
-                    "تعذر تجهيز الكاميرا.",
+                    "تم السماح بالكاميرا. اضغط رفع الملف مرة أخرى.",
                     Toast.LENGTH_SHORT
             ).show();
 
-            return null;
-        }
-    }
-
-
-    /*
-     * إنشاء ملف الصورة
-     */
-    private File createImageFile()
-            throws IOException {
-
-        String timeStamp =
-                new SimpleDateFormat(
-                        "yyyyMMdd_HHmmss",
-                        Locale.getDefault()
-                ).format(new Date());
-
-        String imageFileName =
-                "Qandil_" + timeStamp + "_";
-
-        File storageDir =
-                getExternalFilesDir(
-                        Environment.DIRECTORY_PICTURES
-                );
-
-        return File.createTempFile(
-                imageFileName,
-                ".jpg",
-                storageDir
-        );
-    }
-
-
-    /*
-     * فحص صلاحية الكاميرا
-     */
-    private boolean checkCameraPermission() {
-
-        if (Build.VERSION.SDK_INT <
-                Build.VERSION_CODES.M) {
-
-            return true;
-        }
-
-        return ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CAMERA
-        ) == PackageManager.PERMISSION_GRANTED;
-    }
-
-
-    /*
-     * نتيجة اختيار الملفات
-     */
-    @Override
-    protected void onActivityResult(
-            int requestCode,
-            int resultCode,
-            @Nullable Intent data
-    ) {
-
-        super.onActivityResult(
-                requestCode,
-                resultCode,
-                data
-        );
-
-        if (requestCode != REQUEST_CODE_FILE) {
-            return;
-        }
-
-        if (uploadMessage == null) {
-            return;
-        }
-
-        Uri[] results = null;
-
-
-        /*
-         * إلغاء
-         */
-        if (resultCode != Activity.RESULT_OK) {
-
-            uploadMessage.onReceiveValue(null);
-
-            uploadMessage = null;
-
-            cameraUri = null;
-
-            return;
-        }
-
-
-        /*
-         * الكاميرا
-         */
-        if (data == null) {
-
-            if (cameraUri != null) {
-
-                results =
-                        new Uri[]{
-                                cameraUri
-                        };
-            }
-
         } else {
 
-            /*
-             * عدة ملفات
-             */
-            if (data.getClipData() != null) {
-
-                int count =
-                        data.getClipData()
-                                .getItemCount();
-
-                results =
-                        new Uri[count];
-
-                for (int i = 0; i < count; i++) {
-
-                    results[i] =
-                            data.getClipData()
-                                    .getItemAt(i)
-                                    .getUri();
-                }
-
-            }
-
-            /*
-             * ملف واحد
-             */
-            else if (data.getData() != null) {
-
-                results =
-                        new Uri[]{
-                                data.getData()
-                        };
-            }
-        }
-
-        uploadMessage.onReceiveValue(results);
-
-        uploadMessage = null;
-
-        cameraUri = null;
-    }
-
-
-    /*
-     * نتائج الصلاحيات
-     */
-    @Override
-    public void onRequestPermissionsResult(
-            int requestCode,
-            String[] permissions,
-            int[] grantResults
-    ) {
-
-        super.onRequestPermissionsResult(
-                requestCode,
-                permissions,
-                grantResults
-        );
-
-
-        /*
-         * الكاميرا
-         */
-        if (requestCode ==
-                REQUEST_PERMISSION_CAMERA) {
-
-            if (grantResults.length > 0
-                    && grantResults[0] ==
-                    PackageManager.PERMISSION_GRANTED) {
-
-                Toast.makeText(
-                        this,
-                        "تم السماح بالكاميرا. اضغط رفع الملف مرة أخرى.",
-                        Toast.LENGTH_SHORT
-                ).show();
-
-            } else {
-
-                Toast.makeText(
-                        this,
-                        "لم يتم السماح باستخدام الكاميرا.",
-                        Toast.LENGTH_SHORT
-                ).show();
-            }
-        }
-
-
-        /*
-         * الإشعارات
-         *
-         * لا نطلب الإذن يدويًا هنا.
-         * OneSignal يتولى طلبه.
-         */
-        if (requestCode ==
-                REQUEST_PERMISSION_NOTIFICATIONS) {
-
-            if (grantResults.length > 0
-                    && grantResults[0] ==
-                    PackageManager.PERMISSION_GRANTED) {
-
-                enableOneSignal();
-
-            } else {
-
-                Toast.makeText(
-                        this,
-                        "لم يتم تفعيل الإشعارات.",
-                        Toast.LENGTH_SHORT
-                ).show();
-            }
+            Toast.makeText(
+                    this,
+                    "لم يتم السماح باستخدام الكاميرا.",
+                    Toast.LENGTH_SHORT
+            ).show();
         }
     }
+}
 
 
-    /*
-     * زر الرجوع
-     */
-    @Override
-    public void onBackPressed() {
+@Override
+public void onBackPressed() {
 
-        if (webView == null) {
-
-            showExitDialog();
-
-            return;
-        }
-
-        String currentUrl =
-                webView.getUrl();
-
-        if (currentUrl != null
-                && currentUrl.equals(
-                OFFLINE_URL
-        )) {
-
-            showExitDialog();
-
-            return;
-        }
-
-        if (webView.canGoBack()) {
-
-            webView.goBack();
-
-            return;
-        }
+    if (webView == null) {
 
         showExitDialog();
+        return;
     }
 
+    String currentUrl =
+            webView.getUrl();
 
-    /*
-     * تأكيد الخروج
-     */
-    private void showExitDialog() {
+    if (currentUrl != null
+            && currentUrl.equals(
+            OFFLINE_URL
+    )) {
 
-        new AlertDialog.Builder(this)
-
-                .setTitle("تأكيد الخروج")
-
-                .setMessage(
-                        "هل أنت متأكد من الخروج من التطبيق؟"
-                )
-
-                .setPositiveButton(
-                        "موافق",
-                        (dialog, which) -> {
-                            finish();
-                        }
-                )
-
-                .setNegativeButton(
-                        "إلغاء",
-                        null
-                )
-
-                .show();
+        showExitDialog();
+        return;
     }
 
+    if (webView.canGoBack()) {
 
-    /*
-     * حفظ حالة WebView
-     */
-    @Override
-    protected void onSaveInstanceState(
-            Bundle outState
-    ) {
+        webView.goBack();
+        return;
+    }
 
-        if (webView != null) {
+    showExitDialog();
+}
 
-            webView.saveState(
-                    outState
-            );
-        }
 
-        super.onSaveInstanceState(
+private void showExitDialog() {
+
+    new AlertDialog.Builder(this)
+
+            .setTitle("تأكيد الخروج")
+
+            .setMessage(
+                    "هل أنت متأكد من الخروج من التطبيق؟"
+            )
+
+            .setPositiveButton(
+                    "موافق",
+                    (dialog, which) -> {
+                        finish();
+                    }
+            )
+
+            .setNegativeButton(
+                    "إلغاء",
+                    null
+            )
+
+            .show();
+}
+
+
+@Override
+protected void onSaveInstanceState(
+        Bundle outState
+) {
+
+    if (webView != null) {
+
+        webView.saveState(
                 outState
         );
     }
 
+    super.onSaveInstanceState(
+            outState
+    );
+}
 
-    /*
-     * تنظيف التطبيق
-     */
-    @Override
-    protected void onDestroy() {
 
-        if (connectivityManager != null
-                && networkCallback != null
-                && Build.VERSION.SDK_INT >=
-                Build.VERSION_CODES.N) {
+@Override
+protected void onDestroy() {
 
-            try {
+    if (connectivityManager != null
+            && networkCallback != null
+            && Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.N) {
 
-                connectivityManager
-                        .unregisterNetworkCallback(
-                                networkCallback
-                        );
+        try {
 
-            } catch (Exception ignored) {
-            }
+            connectivityManager
+                    .unregisterNetworkCallback(
+                            networkCallback
+                    );
 
-            networkCallback = null;
+        } catch (Exception ignored) {
         }
 
-
-        if (splashWebView != null) {
-
-            splashWebView.stopLoading();
-
-            splashWebView.setWebChromeClient(null);
-
-            splashWebView.setWebViewClient(null);
-
-            splashWebView.destroy();
-
-            splashWebView = null;
-        }
-
-
-        if (webView != null) {
-
-            webView.stopLoading();
-
-            webView.setWebChromeClient(null);
-
-            webView.setWebViewClient(null);
-
-            webView.destroy();
-
-            webView = null;
-        }
-
-        super.onDestroy();
+        networkCallback = null;
     }
+
+
+    if (splashWebView != null) {
+
+        splashWebView.stopLoading();
+        splashWebView.setWebChromeClient(null);
+        splashWebView.setWebViewClient(null);
+        splashWebView.destroy();
+
+        splashWebView = null;
+    }
+
+
+    if (webView != null) {
+
+        webView.stopLoading();
+        webView.setWebChromeClient(null);
+        webView.setWebViewClient(null);
+        webView.destroy();
+
+        webView = null;
+    }
+
+    super.onDestroy();
+}
+
 }
