@@ -99,6 +99,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    /*
+     * إعداد شاشة البداية
+     */
     private void setupSplash() {
 
         if (splashWebView == null) {
@@ -121,6 +124,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    /*
+     * عرض شاشة البداية
+     */
     private void showSplash() {
 
         showingSplash = true;
@@ -144,6 +150,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    /*
+     * إخفاء شاشة البداية
+     */
     private void hideSplash() {
 
         showingSplash = false;
@@ -198,40 +207,31 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * طلب صلاحية الإشعارات
+     * طلب الإشعارات من OneSignal
+     *
+     * لا نستخدم هنا:
+     * getNotificationsEnabled()
+     *
+     * ولا نطلب POST_NOTIFICATIONS يدويًا
+     * حتى لا يحدث طلب الإذن مرتين.
      */
     private void requestNotificationPermission() {
 
-        /*
-         * Android 13 وما بعده
-         */
-        if (Build.VERSION.SDK_INT >=
-                Build.VERSION_CODES.TIRAMISU) {
+        try {
 
-            if (ContextCompat.checkSelfPermission(
+            OneSignal.getNotifications()
+                    .requestPermission(
+                            false,
+                            null
+                    );
+
+        } catch (Exception e) {
+
+            Toast.makeText(
                     this,
-                    Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED) {
-
-                ActivityCompat.requestPermissions(
-                        this,
-                        new String[]{
-                                Manifest.permission.POST_NOTIFICATIONS
-                        },
-                        REQUEST_PERMISSION_NOTIFICATIONS
-                );
-
-            } else {
-
-                enableOneSignal();
-            }
-
-        } else {
-
-            /*
-             * Android 12 وأقدم
-             */
-            enableOneSignal();
+                    "تعذر فتح طلب الإشعارات.",
+                    Toast.LENGTH_LONG
+            ).show();
         }
     }
 
@@ -244,14 +244,17 @@ public class MainActivity extends AppCompatActivity {
         try {
 
             OneSignal.getNotifications()
-                    .requestPermission(false, null);
+                    .requestPermission(
+                            false,
+                            null
+                    );
 
         } catch (Exception e) {
 
             Toast.makeText(
                     this,
                     "تعذر تفعيل الإشعارات.",
-                    Toast.LENGTH_SHORT
+                    Toast.LENGTH_LONG
             ).show();
         }
     }
@@ -295,6 +298,10 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setSaveFormData(true);
         webSettings.setGeolocationEnabled(true);
 
+
+        /*
+         * Cookies
+         */
         CookieManager cookieManager =
                 CookieManager.getInstance();
 
@@ -388,12 +395,10 @@ public class MainActivity extends AppCompatActivity {
                                 Build.VERSION_CODES.M) {
 
                             if (request.isForMainFrame()) {
-
                                 showOfflinePage();
                             }
 
                         } else {
-
                             showOfflinePage();
                         }
                     }
@@ -415,7 +420,6 @@ public class MainActivity extends AppCompatActivity {
                         );
 
                         if (!showingSplash) {
-
                             showOfflinePage();
                         }
                     }
@@ -438,15 +442,11 @@ public class MainActivity extends AppCompatActivity {
 
                         if (uploadMessage != null) {
 
-                            uploadMessage.onReceiveValue(
-                                    null
-                            );
-
+                            uploadMessage.onReceiveValue(null);
                             uploadMessage = null;
                         }
 
-                        uploadMessage =
-                                filePathCallback;
+                        uploadMessage = filePathCallback;
 
                         boolean canCapture =
                                 fileChooserParams
@@ -529,7 +529,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                         /*
-                         * فتح الملفات
+                         * فتح منتقي الملفات
                          */
                         try {
 
@@ -544,10 +544,7 @@ public class MainActivity extends AppCompatActivity {
 
                             if (uploadMessage != null) {
 
-                                uploadMessage.onReceiveValue(
-                                        null
-                                );
-
+                                uploadMessage.onReceiveValue(null);
                                 uploadMessage = null;
                             }
 
@@ -651,7 +648,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*
-     * مراقبة الإنترنت
+     * مراقبة الشبكة
      */
     private void registerNetworkCallback() {
 
@@ -681,6 +678,7 @@ public class MainActivity extends AppCompatActivity {
 
                         runOnUiThread(
                                 new Runnable() {
+
                                     @Override
                                     public void run() {
                                         returnToWebsite();
@@ -697,6 +695,7 @@ public class MainActivity extends AppCompatActivity {
 
                         runOnUiThread(
                                 new Runnable() {
+
                                     @Override
                                     public void run() {
 
@@ -760,7 +759,6 @@ public class MainActivity extends AppCompatActivity {
 
                         @Override
                         public void run() {
-
                             returningOnline = false;
                         }
 
@@ -798,7 +796,8 @@ public class MainActivity extends AppCompatActivity {
                     uri.getHost();
 
             /*
-             * روابط الموقع تبقى داخل التطبيق
+             * موقع قنديل الزمان
+             * يبقى داخل التطبيق
              */
             if (host != null
                     && (
@@ -815,7 +814,7 @@ public class MainActivity extends AppCompatActivity {
 
 
             /*
-             * الروابط الخارجية
+             * المواقع الخارجية
              */
             try {
 
@@ -1147,6 +1146,9 @@ public class MainActivity extends AppCompatActivity {
 
         /*
          * الإشعارات
+         *
+         * لا نطلب الإذن يدويًا هنا.
+         * OneSignal يتولى طلبه.
          */
         if (requestCode ==
                 REQUEST_PERMISSION_NOTIFICATIONS) {
@@ -1156,12 +1158,6 @@ public class MainActivity extends AppCompatActivity {
                     PackageManager.PERMISSION_GRANTED) {
 
                 enableOneSignal();
-
-                Toast.makeText(
-                        this,
-                        "تم تفعيل الإشعارات.",
-                        Toast.LENGTH_SHORT
-                ).show();
 
             } else {
 
@@ -1316,4 +1312,4 @@ public class MainActivity extends AppCompatActivity {
 
         super.onDestroy();
     }
-    }
+}
