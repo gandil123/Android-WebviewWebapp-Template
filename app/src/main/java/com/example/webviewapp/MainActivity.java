@@ -249,10 +249,38 @@ public class MainActivity extends AppCompatActivity {
          * إذا كان المستخدم فعّل الإشعارات مسبقًا
          * فلا حاجة لإظهار النافذة مرة أخرى.
          */
-        if (OneSignal.getNotificationsEnabled()) {
-            return;
-        }
+        private void showNotificationDialogIfNeeded() {
 
+    if (notificationDialogShown) {
+        return;
+    }
+
+    notificationDialogShown = true;
+
+    new AlertDialog.Builder(this)
+
+            .setTitle("تفعيل الإشعارات")
+
+            .setMessage(
+                    "هل تريد تفعيل إشعارات قنديل الزمان للحصول على التنبيهات والتحديثات؟"
+            )
+
+            .setPositiveButton(
+                    "تفعيل",
+                    (dialog, which) -> {
+
+                        requestNotificationPermission();
+
+                    }
+            )
+
+            .setNegativeButton(
+                    "لاحقًا",
+                    null
+            )
+
+            .show();
+        }
         new AlertDialog.Builder(this)
 
                 .setTitle("تفعيل الإشعارات")
